@@ -12,7 +12,7 @@ local M = {}
 ---@param method Methods
 ---@param bufNr integer
 ---@param winId integer
----@return table
+---@return table|nil
 function M.request(method, bufNr, winId)
   local params
   if
@@ -32,6 +32,10 @@ function M.request(method, bufNr, winId)
   end
 
   local response = vim.lsp.buf_request_sync(bufNr, method, params)
+  if not response then
+    return
+  end
+
   local results = {}
   for client_id, responseMessage in pairs(response) do
     -- https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseMessage
