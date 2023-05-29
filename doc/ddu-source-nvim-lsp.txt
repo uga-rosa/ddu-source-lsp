@@ -1,0 +1,86 @@
+*ddu-source-nvim_lsp.txt*			ddu source for nvim-lsp
+
+Author  : uga-rosa
+License : MIT license
+
+CONTENTS					*ddu-source-nvim_lsp-contents*
+
+Introduction				|ddu-source-nvim_lsp-introduction|
+Supported methods			|ddu-source-nvim_lsp-supported-methods|
+Install					|ddu-source-nvim_lsp-install|
+Examples				|ddu-source-nvim_lsp-examples|
+Params					|ddu-source-nvim_lsp-params|
+
+
+==============================================================================
+INTRODUCTION				*ddu-source-nvim_lsp-introduction*
+
+Ddu source for neovim's built-in lsp client.
+
+
+==============================================================================
+INSTALL						*ddu-source-nvim_lsp-install*
+
+Please install "ddu.vim" and "denops.vim".
+
+https://github.com/Shougo/ddu.vim
+https://github.com/vim-denops/denops.vim
+
+
+==============================================================================
+SUPPORTED METHODS			*ddu-source-nvim_lsp-supported-methods*
+
+- textDocument/declaration
+- textDocument/definition
+- textDocument/typeDefinition
+- textDocument/implementation
+- textDocument/references
+
+
+==============================================================================
+EXAMPLES				*ddu-source-nvim_lsp-examples*
+>
+	call ddu#start(#{
+	    \ sources: [#{
+	    \   name: 'nvim_lsp',
+	    \   params: #{
+	    \     method: 'textDocument/definition',
+	    \     autoJump: v:true,
+	    \   }
+	    \ }],
+	    \ uiParams: #{
+	    \   ff: #{
+	    \     ignoreEmpty: v:true,
+	    \   },
+	    \ }
+	    \})
+<
+
+==============================================================================
+PARAMS					*ddu-source-nvim_lsp-params*
+
+				*ddu-source-nvim_lsp-param-method*
+method		(string)
+	The method to be invoked.
+	See |ddu-source-nvim_lsp-supported-methods|.
+
+	Default: ""
+
+				*ddu-source-nvim_lsp-param-method*
+autoJump	(boolean)
+	When there is only one candidate, it does not return items to ddu, but
+	jumps directly. If you use ui-ff, you need to set
+	|ddu-ui-ff-param-ignoreEmpty| to v:true. This option may not work on
+	ui where there is no similar option.
+
+	Supported methods are:
+	- textDocument/declaration
+	- textDocument/definition
+	- textDocument/typeDefinition
+	- textDocument/implementation
+
+	Default: v:false
+
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:noet:fen:noet:
