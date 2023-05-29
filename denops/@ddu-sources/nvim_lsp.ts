@@ -149,8 +149,8 @@ export class Source extends BaseSource<Params> {
         .find(({ location }) => locations[0] === location);
       const clientId = pair?.clientId as number;
       await denops.eval(
-        `luaeval("require'ddu_nvim_lsp'.jump(_A.location, _A.clientId)", l:)`,
-        { location: locations[0], clientId },
+        `luaeval("require'ddu_nvim_lsp'.jump(_A[1], ${clientId})", [l:location])`,
+        { location: locations[0] },
       );
     } else {
       return locations.map(locationToItem);
