@@ -33,7 +33,7 @@ function locationToItem(location: Location): Item<ActionData> {
 function isDenoUriWithFragment(location: Location) {
   const { uri } = location;
   /**
-   * NOTE: Workaround
+   * Workaround. https://github.com/denoland/deno/issues/19304
    * filter deno virtual buffers with udd fragments
    * #(^|~|<|=)
    */
@@ -44,13 +44,13 @@ type Params = {
   method: string;
 };
 
-const SUPPORTED_METHODS = [
-  "textDocument/definition",
-  "textDocument/declaration",
-  "textDocument/typeDefinition",
-  "textDocument/implementation",
-  "textDocument/references",
-];
+const SUPPORTED_METHODS = {
+  ["textDocument/declaration"]: "textDocument/declaration",
+  ["textDocument/definition"]: "textDocument/definition",
+  ["textDocument/typeDefinition"]: "textDocument/typeDefinition",
+  ["textDocument/implementation"]: "textDocument/implementation",
+  ["textDocument/references"]: "textDocument/references",
+};
 
 export class Source extends BaseSource<Params> {
   kind = "file";
@@ -63,7 +63,7 @@ export class Source extends BaseSource<Params> {
 
     return new ReadableStream({
       async start(controller) {
-        if (!SUPPORTED_METHODS.includes(method)) {
+        if (!Object.values(SUPPORTED_METHODS).includes(method)) {
           console.log(`Unsupported method: ${method}`);
           controller.close();
           return;
@@ -79,10 +79,10 @@ export class Source extends BaseSource<Params> {
         }
 
         switch (method) {
-          case "textDocument/declaration":
-          case "textDocument/definition":
-          case "textDocument/typeDefinition":
-          case "textDocument/implementation": {
+          case SUPPORTED_METHODS["textDocument/declaration"]:
+          case SUPPORTED_METHODS["textDocument/definition"]:
+          case SUPPORTED_METHODS["textDocument/typeDefinition"]:
+          case SUPPORTED_METHODS["textDocument/implementation"]: {
             const locationClientIdPairs: {
               location: Location;
               clientId: number;
@@ -126,7 +126,7 @@ export class Source extends BaseSource<Params> {
 
             break;
           }
-          case "textDocument/references": {
+          case SUPPORTED_METHODS["textDocument/references"]: {
             const items = response.flatMap(({ result }) => {
               /**
                * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_references
