@@ -78,7 +78,7 @@ export class Source extends BaseSource<Params> {
         }
 
         const response = await denops.eval(
-          `luaeval("require'ddu_nvim_lsp'['${method}'](${context.bufNr}, ${context.winId})")`,
+          `luaeval("require'ddu_nvim_lsp'.request('${method}', ${context.bufNr}, ${context.winId})")`,
         ) as Response | null;
 
         if (response === null) {
