@@ -8,12 +8,18 @@ import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.1/file.ts#^";
 import { Location, LocationLink } from "npm:vscode-languageserver-types@3.17.3";
 
 const SUPPORTED_METHODS = {
-  ["textDocument/declaration"]: "textDocument/declaration",
-  ["textDocument/definition"]: "textDocument/definition",
-  ["textDocument/typeDefinition"]: "textDocument/typeDefinition",
-  ["textDocument/implementation"]: "textDocument/implementation",
-  ["textDocument/references"]: "textDocument/references",
-};
+  "textDocument/declaration": "textDocument/declaration",
+  "textDocument/definition": "textDocument/definition",
+  "textDocument/typeDefinition": "textDocument/typeDefinition",
+  "textDocument/implementation": "textDocument/implementation",
+  "textDocument/references": "textDocument/references",
+} as const satisfies Record<string, string>;
+
+function isSupportedMethod(
+  method: string,
+): method is typeof SUPPORTED_METHODS[keyof typeof SUPPORTED_METHODS] {
+  return Object.values(SUPPORTED_METHODS).some((m) => method === m);
+}
 
 function toLocation(loc: Location | LocationLink): Location {
   if ("uri" in loc && "range" in loc) {
@@ -70,7 +76,7 @@ export class Source extends BaseSource<Params> {
 
     return new ReadableStream({
       async start(controller) {
-        if (!Object.values(SUPPORTED_METHODS).includes(method)) {
+        if (!isSupportedMethod(method)) {
           console.log(`Unsupported method: ${method}`);
           controller.close();
           return;
