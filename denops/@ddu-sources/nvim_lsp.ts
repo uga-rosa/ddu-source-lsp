@@ -58,10 +58,8 @@ type Params = {
   method: string;
 };
 
-type Response = {
-  clientId: number;
-  result: unknown;
-}[];
+/** Array of results per client */
+type Response = unknown[];
 
 export class Source extends BaseSource<Params> {
   kind = "file";
@@ -118,7 +116,7 @@ export class Source extends BaseSource<Params> {
   definitionHandler(
     response: Response,
   ): Item<ActionData>[] {
-    return response.flatMap(({ result }) => {
+    return response.flatMap((result) => {
       /**
        * References:
        * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_declaration
@@ -144,8 +142,9 @@ export class Source extends BaseSource<Params> {
   referencesHandler(
     response: Response,
   ): Item<ActionData>[] {
-    return response.flatMap(({ result }) => {
+    return response.flatMap((result) => {
       /**
+       * Reference:
        * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_references
        */
       const locations = result as Location[];

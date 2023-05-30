@@ -42,10 +42,7 @@ function M.request(method, bufNr, winId)
     local error, result = responseMessage.error, responseMessage.result
 
     if error == nil and result then
-      table.insert(results, {
-        clientId = client_id,
-        result = result,
-      })
+      table.insert(results, result)
     end
 
     local client = vim.lsp.get_client_by_id(client_id)
