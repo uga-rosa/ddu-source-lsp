@@ -67,9 +67,4 @@ function M.request(method, bufNr, winId)
   return results
 end
 
-function M.jump(location, client_id)
-  local client = vim.lsp.get_client_by_id(client_id)
-  vim.lsp.util.jump_to_location(location, client.offset_encoding)
-end
-
 return M
