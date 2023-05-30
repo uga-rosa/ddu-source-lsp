@@ -105,6 +105,9 @@ export class Source extends BaseSource<Params> {
             controller.enqueue(items);
             break;
           }
+          default: {
+            method satisfies never;
+          }
         }
 
         controller.close();
