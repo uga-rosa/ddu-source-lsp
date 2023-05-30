@@ -6,18 +6,17 @@ License : MIT license
 CONTENTS					*ddu-source-nvim_lsp-contents*
 
 Introduction				|ddu-source-nvim_lsp-introduction|
-Supported methods			|ddu-source-nvim_lsp-supported-methods|
 Install					|ddu-source-nvim_lsp-install|
 Examples				|ddu-source-nvim_lsp-examples|
 Params					|ddu-source-nvim_lsp-params|
+Supported methods			|ddu-source-nvim_lsp-supported-methods|
+FAQ					|ddu-source-nvim_lsp-faq|
 
 
 ==============================================================================
 INTRODUCTION				*ddu-source-nvim_lsp-introduction*
 
 Ddu source for neovim's built-in lsp client.
-
-
 
 
 ==============================================================================
@@ -27,16 +26,6 @@ Please install "ddu.vim" and "denops.vim".
 
 https://github.com/Shougo/ddu.vim
 https://github.com/vim-denops/denops.vim
-
-
-==============================================================================
-SUPPORTED METHODS			*ddu-source-nvim_lsp-supported-methods*
-
-- textDocument/declaration
-- textDocument/definition
-- textDocument/typeDefinition
-- textDocument/implementation
-- textDocument/references
 
 
 ==============================================================================
@@ -67,6 +56,16 @@ method		(string)
 	See |ddu-source-nvim_lsp-supported-methods|.
 
 	Default: ""
+
+
+==============================================================================
+SUPPORTED METHODS			*ddu-source-nvim_lsp-supported-methods*
+
+- textDocument/declaration
+- textDocument/definition
+- textDocument/typeDefinition
+- textDocument/implementation
+- textDocument/references
 
 
 ==============================================================================
