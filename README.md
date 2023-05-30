@@ -8,3 +8,7 @@ Supported methods are:
 - textDocument/typeDefinition
 - textDocument/implementation
 - textDocument/references
+
+# ddu-source-nvim_diagnostic
+
+Ddu source for neovim's diagnostic framework.
