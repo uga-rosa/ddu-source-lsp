@@ -18,6 +18,8 @@ INTRODUCTION				*ddu-source-nvim_lsp-introduction*
 Ddu source for neovim's built-in lsp client.
 
 
+
+
 ==============================================================================
 INSTALL						*ddu-source-nvim_lsp-install*
 
@@ -41,23 +43,23 @@ SUPPORTED METHODS			*ddu-source-nvim_lsp-supported-methods*
 EXAMPLES				*ddu-source-nvim_lsp-examples*
 >
 	call ddu#start(#{
+	    \ sync: v:true,
 	    \ sources: [#{
 	    \   name: 'nvim_lsp',
 	    \   params: #{
 	    \     method: 'textDocument/definition',
-	    \     autoJump: v:true,
 	    \   }
 	    \ }],
 	    \ uiParams: #{
 	    \   ff: #{
-	    \     ignoreEmpty: v:true,
+	    \     immediateAction: 'open',
 	    \   },
 	    \ }
 	    \})
 <
 
 ==============================================================================
-PARAMS					*ddu-source-nvim_lsp-params*
+PARAMS						*ddu-source-nvim_lsp-params*
 
 					*ddu-source-nvim_lsp-param-method*
 method		(string)
@@ -66,20 +68,14 @@ method		(string)
 
 	Default: ""
 
-					*ddu-source-nvim_lsp-param-autoJump*
-autoJump	(boolean)
-	When there is only one candidate, it does not return items to ddu, but
-	jumps directly. If you use ui-ff, you need to set
-	|ddu-ui-ff-param-ignoreEmpty| to v:true. This option may not work on
-	ui where there is no similar option.
 
-	Supported methods are:
-	- textDocument/declaration
-	- textDocument/definition
-	- textDocument/typeDefinition
-	- textDocument/implementation
+==============================================================================
+FREQUENTLY ASKED QUESTIONS (FAQ)		*ddu-source-nvim_lsp-faq*
 
-	Default: v:false
+Q: I want to skip selection when there is only one candidate, close the UI and
+jump automatically.
+
+A: Use |ddu-ui-ff-param-immediateAction|.
 
 
 ==============================================================================

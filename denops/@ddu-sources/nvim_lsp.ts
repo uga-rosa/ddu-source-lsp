@@ -50,7 +50,6 @@ function isDenoUriWithFragment(location: Location) {
 
 type Params = {
   method: string;
-  autoJump: boolean;
 };
 
 type Response = {
@@ -66,7 +65,7 @@ export class Source extends BaseSource<Params> {
     sourceParams: Params;
     context: Context;
   }): ReadableStream<Item<ActionData>[]> {
-    const { denops, sourceParams: { method, autoJump }, context } = args;
+    const { denops, sourceParams: { method }, context } = args;
     const { definitionHandler, referencesHandler } = this;
 
     return new ReadableStream({
@@ -91,10 +90,8 @@ export class Source extends BaseSource<Params> {
           case SUPPORTED_METHODS["textDocument/definition"]:
           case SUPPORTED_METHODS["textDocument/typeDefinition"]:
           case SUPPORTED_METHODS["textDocument/implementation"]: {
-            const items = await definitionHandler(denops, response, autoJump);
-            if (items) {
-              controller.enqueue(items);
-            }
+            const items = definitionHandler(response);
+            controller.enqueue(items);
             break;
           }
           case SUPPORTED_METHODS["textDocument/references"]: {
@@ -109,52 +106,30 @@ export class Source extends BaseSource<Params> {
     });
   }
 
-  async definitionHandler(
-    denops: Denops,
+  definitionHandler(
     response: Response,
-    autoJump: boolean,
-  ): Promise<Item<ActionData>[] | undefined> {
-    const locationClientIdPairs: {
-      location: Location;
-      clientId: number;
-    }[] = [];
-
-    const locations = response.flatMap(({ result, clientId }) => {
+  ): Item<ActionData>[] {
+    return response.flatMap(({ result }) => {
       /**
-       * response.result: Location | Location[] | LocationLink[]
        * References:
        * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_declaration
        * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_definition
        * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_typeDefinition
        * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_implementation
        */
-      const locations = (Array.isArray(result) ? result : [result]) as
+      const locations = result as
+        | Location
         | Location[]
         | LocationLink[];
 
-      return locations.map((loc) => {
-        const location = toLocation(loc);
-        if (autoJump) {
-          locationClientIdPairs.push({ location, clientId });
-        }
-        return location;
-      });
+      if (!Array.isArray(locations)) {
+        return [locations];
+      } else {
+        return locations.map(toLocation);
+      }
     }).filter((location) => {
       return !isDenoUriWithFragment(location);
-    });
-
-    if (autoJump && locations.length === 1) {
-      // Jump directly when there is only one candidate.
-      const pair = locationClientIdPairs
-        .find(({ location }) => locations[0] === location);
-      const clientId = pair?.clientId as number;
-      await denops.eval(
-        `luaeval("require'ddu_nvim_lsp'.jump(_A[1], ${clientId})", [l:location])`,
-        { location: locations[0] },
-      );
-    } else {
-      return locations.map(locationToItem);
-    }
+    }).map(locationToItem);
   }
 
   referencesHandler(
@@ -166,15 +141,14 @@ export class Source extends BaseSource<Params> {
        */
       const locations = result as Location[];
       return locations;
-    }).filter((location) => !isDenoUriWithFragment(location)).map(
-      locationToItem,
-    );
+    }).filter((location) => {
+      return !isDenoUriWithFragment(location);
+    }).map(locationToItem);
   }
 
   params(): Params {
     return {
       method: "",
-      autoJump: false,
     };
   }
 }
