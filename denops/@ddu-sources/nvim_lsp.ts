@@ -59,7 +59,7 @@ async function makePositionParams(
   /**
    * @see :h vim.lsp.util.make_position_params()
    * Creates a `TextDocumentPositionParams` object for the current buffer and cursor position.
-   * Reference: https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocumentPositionParams
+   * Reference: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocumentPositionParams
    */
   return await denops.call(
     `luaeval`,
@@ -137,10 +137,10 @@ function definitionHandler(
   return response.flatMap((result) => {
     /**
      * References:
-     * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_declaration
-     * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_definition
-     * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_typeDefinition
-     * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_implementation
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_declaration
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_definition
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_typeDefinition
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_implementation
      */
     const locations = result as Location | Location[] | LocationLink[];
 
@@ -159,7 +159,7 @@ function referencesHandler(
   return response.flatMap((result) => {
     /**
      * Reference:
-     * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_references
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_references
      */
     const locations = result as Location[];
     return locations;
