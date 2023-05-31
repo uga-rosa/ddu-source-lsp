@@ -64,22 +64,6 @@ async function isMethodSupported(
   }
 }
 
-/** Array of results per client */
-type Response = unknown[];
-
-async function lspRequest(
-  denops: Denops,
-  bufnr: number,
-  method: Method,
-  params: unknown,
-): Promise<Response | null> {
-  return await denops.call(
-    `luaeval`,
-    `require('ddu_nvim_lsp').request(${bufnr}, '${method}', _A)`,
-    params,
-  ) as Response | null;
-}
-
 interface TextDocumentPositionParams {
   /** The text document. */
   textDocument: TextDocumentIdentifier;
@@ -119,6 +103,22 @@ async function makeTextDocumentIdentifier(
     `luaeval`,
     `vim.lsp.util.make_text_document_params(${bufNr})`,
   ) as TextDocumentIdentifier;
+}
+
+/** Array of results per client */
+type Response = unknown[];
+
+async function lspRequest(
+  denops: Denops,
+  bufnr: number,
+  method: Method,
+  params: unknown,
+): Promise<Response | null> {
+  return await denops.call(
+    `luaeval`,
+    `require('ddu_nvim_lsp').request(${bufnr}, '${method}', _A)`,
+    params,
+  ) as Response | null;
 }
 
 type Params = {
@@ -256,9 +256,11 @@ function isDenoUriWithFragment(location: Location) {
   return /^deno:.*%23(%5E|%7E|%3C|%3D)/.test(uri);
 }
 
-function locationToItem(location: Location): Item<ActionData> {
+function locationToItem(
+  location: Location,
+): Item<ActionData> {
   const { uri, range } = location;
-  const path = uri.startsWith("file:") ? new URL(uri).pathname : uri;
+  const path = uriToPath(uri);
   const { line, character } = range.start;
   const [lineNr, col] = [line + 1, character + 1];
   return {
@@ -266,6 +268,14 @@ function locationToItem(location: Location): Item<ActionData> {
     display: `${path}:${lineNr}:${col}`,
     action: { path, lineNr, col },
   };
+}
+
+function uriToPath(uri: string) {
+  if (uri.startsWith("file:")) {
+    return new URL(uri).pathname;
+  } else {
+    return uri;
+  }
 }
 
 function symbolHandler(
