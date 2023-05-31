@@ -9,6 +9,7 @@ Supported methods are:
 - textDocument/implementation
 - textDocument/references
 - textDocument/documentSymbol
+- workspace/symbol
 
 # ddu-source-nvim_diagnostic
 
