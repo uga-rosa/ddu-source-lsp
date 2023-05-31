@@ -134,7 +134,7 @@ export class Source extends BaseSource<Params> {
 function definitionHandler(
   response: Response,
 ): Item<ActionData>[] {
-  const locations = response.flatMap((result) => {
+  return response.flatMap((result) => {
     /**
      * References:
      * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_declaration
@@ -149,22 +149,22 @@ function definitionHandler(
     } else {
       return locations.map(toLocation);
     }
-  });
-  return locationsToItems(locations);
+  }).filter((location) => !isDenoUriWithFragment(location))
+    .map(locationToItem);
 }
 
 function referencesHandler(
   response: Response,
 ): Item<ActionData>[] {
-  const locations = response.flatMap((result) => {
+  return response.flatMap((result) => {
     /**
      * Reference:
      * https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_references
      */
     const locations = result as Location[];
     return locations;
-  });
-  return locationsToItems(locations);
+  }).filter((location) => !isDenoUriWithFragment(location))
+    .map(locationToItem);
 }
 
 function toLocation(loc: Location | LocationLink): Location {
@@ -176,12 +176,6 @@ function toLocation(loc: Location | LocationLink): Location {
       range: loc.targetSelectionRange,
     };
   }
-}
-
-function locationsToItems(locations: Location[]): Item<ActionData>[] {
-  return locations
-    .filter((location) => !isDenoUriWithFragment(location))
-    .map(locationToItem);
 }
 
 function isDenoUriWithFragment(location: Location) {
