@@ -8,6 +8,7 @@ Supported methods are:
 - textDocument/typeDefinition
 - textDocument/implementation
 - textDocument/references
+- textDocument/documentSymbol
 
 # ddu-source-nvim_diagnostic
 

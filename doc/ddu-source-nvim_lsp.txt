@@ -66,6 +66,7 @@ SUPPORTED METHODS			*ddu-source-nvim_lsp-supported-methods*
 - textDocument/typeDefinition
 - textDocument/implementation
 - textDocument/references
+- textDocument/documentSymbol
 
 
 ==============================================================================
