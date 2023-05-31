@@ -1,6 +1,6 @@
 import { BaseSource, Context, Item } from "https://deno.land/x/ddu_vim@v2.8.6/types.ts#^";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.8.6/deps.ts#^";
-import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.1/file.ts#^";
+import { ActionData } from "../@ddu-kinds/nvim_lsp.ts";
 import {
   DocumentSymbol,
   Location,
@@ -126,7 +126,7 @@ type Params = {
 };
 
 export class Source extends BaseSource<Params> {
-  kind = "file";
+  kind = "nvim_lsp";
 
   gather(args: {
     denops: Denops;
@@ -266,7 +266,10 @@ function locationToItem(
   return {
     word: path,
     display: `${path}:${lineNr}:${col}`,
-    action: { path, lineNr, col },
+    action: {
+      path,
+      range: location.range,
+    },
   };
 }
 
@@ -294,9 +297,8 @@ function symbolHandler(
         return {
           word: `[${symbol.kind}] ${symbol.name}`,
           action: {
-            bufNr,
-            lineNr: symbol.location.range.start.line + 1,
-            col: symbol.location.range.start.character + 1,
+            path: uriToPath(symbol.location.uri),
+            range: symbol.location.range,
           },
         };
       } else {
@@ -304,8 +306,7 @@ function symbolHandler(
           word: `[${symbol.kind}] ${symbol.name}`,
           action: {
             bufNr,
-            lineNr: symbol.selectionRange.start.line + 1,
-            col: symbol.selectionRange.start.character + 1,
+            range: symbol.selectionRange,
           },
         };
       }
