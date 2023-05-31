@@ -9,9 +9,7 @@ import {
   TextDocumentIdentifier,
 } from "npm:vscode-languageserver-types@3.17.3";
 
-type Method = typeof SUPPORTED_METHODS[keyof typeof SUPPORTED_METHODS];
-
-const SUPPORTED_METHODS = {
+const VALID_METHODS = {
   "textDocument/declaration": "textDocument/declaration",
   "textDocument/definition": "textDocument/definition",
   "textDocument/typeDefinition": "textDocument/typeDefinition",
@@ -19,10 +17,47 @@ const SUPPORTED_METHODS = {
   "textDocument/references": "textDocument/references",
 } as const satisfies Record<string, string>;
 
-function isSupportedMethod(
+type Method = typeof VALID_METHODS[keyof typeof VALID_METHODS];
+
+function isMethod(
   method: string,
 ): method is Method {
-  return Object.values(SUPPORTED_METHODS).some((m) => method === m);
+  return Object.values(VALID_METHODS).some((m) => method === m);
+}
+
+const ProviderMap = {
+  "textDocument/declaration": "declarationProvider",
+  "textDocument/definition": "definitionProvider",
+  "textDocument/typeDefinition": "typeDefinitionProvider",
+  "textDocument/implementation": "implementationProvider",
+  "textDocument/references": "referencesProvider",
+} as const satisfies Record<Method, string>;
+
+type Provider = typeof ProviderMap[keyof typeof ProviderMap];
+
+async function isMethodSupported(
+  denops: Denops,
+  method: Method,
+  bufNr: number,
+): Promise<boolean> {
+  const serverCapabilities = await denops.call(
+    `luaeval`,
+    `require('ddu_nvim_lsp').get_server_capabilities(${bufNr})`,
+  ) as Record<Provider, unknown>[];
+
+  if (serverCapabilities.length === 0) {
+    console.log("No server attached");
+    return false;
+  } else {
+    const isSupported = serverCapabilities.some((serverCapability) => {
+      const provider = ProviderMap[method];
+      return provider in serverCapability;
+    });
+    if (!isSupported) {
+      console.log(`${method} is not supported by any of the servers`);
+    }
+    return isSupported;
+  }
 }
 
 /** Array of results per client */
@@ -83,17 +118,20 @@ export class Source extends BaseSource<Params> {
 
     return new ReadableStream({
       async start(controller) {
-        if (!isSupportedMethod(method)) {
-          console.log(`Unsupported method: ${method}`);
+        if (!isMethod(method)) {
+          console.log(`Unknown method: ${method}`);
+          controller.close();
+          return;
+        } else if (!(await isMethodSupported(denops, method, bufNr))) {
           controller.close();
           return;
         }
 
         switch (method) {
-          case SUPPORTED_METHODS["textDocument/declaration"]:
-          case SUPPORTED_METHODS["textDocument/definition"]:
-          case SUPPORTED_METHODS["textDocument/typeDefinition"]:
-          case SUPPORTED_METHODS["textDocument/implementation"]: {
+          case VALID_METHODS["textDocument/declaration"]:
+          case VALID_METHODS["textDocument/definition"]:
+          case VALID_METHODS["textDocument/typeDefinition"]:
+          case VALID_METHODS["textDocument/implementation"]: {
             const params = await makePositionParams(denops, winId);
             const response = await lspRequest(denops, bufNr, method, params);
             if (response) {
@@ -102,7 +140,7 @@ export class Source extends BaseSource<Params> {
             }
             break;
           }
-          case SUPPORTED_METHODS["textDocument/references"]: {
+          case VALID_METHODS["textDocument/references"]: {
             const params = await makePositionParams(denops, winId) as ReferenceParams;
             params.context = {
               includeDeclaration: true,

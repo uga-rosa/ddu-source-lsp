@@ -38,4 +38,15 @@ function M.request(bufNr, method, params)
   return results
 end
 
+---@param bufnr integer
+---@return table[]
+function M.get_server_capabilities(bufnr)
+  local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
+  local server_capabilities = {}
+  for _, client in ipairs(clients) do
+    table.insert(server_capabilities, client.server_capabilities)
+  end
+  return server_capabilities
+end
+
 return M
