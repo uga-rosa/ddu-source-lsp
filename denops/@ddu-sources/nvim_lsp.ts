@@ -8,6 +8,7 @@ import {
   Position,
   ReferenceContext,
   SymbolInformation,
+  SymbolKind,
   TextDocumentIdentifier,
 } from "npm:vscode-languageserver-types@3.17.3";
 
@@ -177,7 +178,7 @@ export class Source extends BaseSource<Params> {
             };
             const response = await lspRequest(denops, bufNr, method, params);
             if (response) {
-              const items = symbolHandler(response, bufNr);
+              const items = documentSymbolHandler(response, bufNr);
               controller.enqueue(items);
             }
             break;
@@ -281,21 +282,32 @@ function uriToPath(uri: string) {
   }
 }
 
-function symbolHandler(
+function documentSymbolHandler(
   response: Response,
   bufNr: number,
 ): Item<ActionData>[] {
-  return response.flatMap((result) => {
+  const items = response.flatMap((result) => {
     /**
      * Reference:
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_documentSymbol
      */
     const symbols = result as DocumentSymbol[] | SymbolInformation[];
 
-    return symbols.map((symbol): Item<ActionData> => {
+    return symbols.map((symbol) => {
+      const kindName = KindName[symbol.kind];
+      const kindIcon = KindIcon[kindName];
+      const kind = `${kindIcon} [${kindName}]`.padEnd(17, " ");
+      const word = `${kind} ${symbol.name}`;
+      const highlights = [{
+        name: "nvim-lsp-symbol",
+        hl_group: KindHl[kindName] as string,
+        col: 1,
+        width: 19, // The byte length of icon is 3.
+      }];
       if ("location" in symbol) {
         return {
-          word: `[${symbol.kind}] ${symbol.name}`,
+          word,
+          highlights,
           action: {
             path: uriToPath(symbol.location.uri),
             range: symbol.location.range,
@@ -303,7 +315,8 @@ function symbolHandler(
         };
       } else {
         return {
-          word: `[${symbol.kind}] ${symbol.name}`,
+          word,
+          highlights,
           action: {
             bufNr,
             range: symbol.selectionRange,
@@ -312,4 +325,99 @@ function symbolHandler(
       }
     });
   });
+
+  items.sort((a, b) => {
+    return (a.action?.range?.start.line as number) - (b.action?.range?.start.line as number);
+  });
+
+  return items;
 }
+
+const KindName = {
+  1: "File",
+  2: "Module",
+  3: "Namespace",
+  4: "Package",
+  5: "Class",
+  6: "Method",
+  7: "Property",
+  8: "Field",
+  9: "Constructor",
+  10: "Enum",
+  11: "Interface",
+  12: "Function",
+  13: "Variable",
+  14: "Constant",
+  15: "String",
+  16: "Number",
+  17: "Boolean",
+  18: "Array",
+  19: "Object",
+  20: "Key",
+  21: "Null",
+  22: "EnumMember",
+  23: "Struct",
+  24: "Event",
+  25: "Operator",
+  26: "TypeParameter",
+} as const satisfies Record<SymbolKind, string>;
+
+type KindName = typeof KindName[keyof typeof KindName];
+
+const KindIcon = {
+  File: "",
+  Module: "",
+  Namespace: "",
+  Package: "",
+  Class: "",
+  Method: "",
+  Property: "",
+  Field: "",
+  Constructor: "",
+  Enum: "",
+  Interface: "",
+  Function: "",
+  Variable: "",
+  Constant: "",
+  String: "",
+  Number: "",
+  Boolean: "",
+  Array: "",
+  Object: "",
+  Key: "",
+  Null: "",
+  EnumMember: "",
+  Struct: "",
+  Event: "",
+  Operator: "",
+  TypeParameter: "",
+} as const satisfies Record<KindName, string>;
+
+const KindHl = {
+  File: "Structure",
+  Module: "Structure",
+  Namespace: "Structure",
+  Package: "Structure",
+  Class: "Structure",
+  Method: "Function",
+  Property: "Identifier",
+  Field: "Identifier",
+  Constructor: "Structure",
+  Enum: "Type",
+  Interface: "Type",
+  Function: "Function",
+  Variable: "Identifier",
+  Constant: "Constant",
+  String: "String",
+  Number: "Number",
+  Boolean: "Boolean",
+  Array: "Structure",
+  Object: "Structure",
+  Key: "Identifier",
+  Null: "Special",
+  EnumMember: "Identifier",
+  Struct: "Structure",
+  Event: "Type",
+  Operator: "Operator",
+  TypeParameter: "Type",
+} as const satisfies Record<KindName, string>;
