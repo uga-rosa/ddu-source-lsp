@@ -2,10 +2,12 @@ import { BaseSource, Context, Item } from "https://deno.land/x/ddu_vim@v2.8.6/ty
 import { Denops } from "https://deno.land/x/ddu_vim@v2.8.6/deps.ts#^";
 import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.1/file.ts#^";
 import {
+  DocumentSymbol,
   Location,
   LocationLink,
   Position,
   ReferenceContext,
+  SymbolInformation,
   TextDocumentIdentifier,
 } from "npm:vscode-languageserver-types@3.17.3";
 
@@ -15,6 +17,7 @@ const VALID_METHODS = {
   "textDocument/typeDefinition": "textDocument/typeDefinition",
   "textDocument/implementation": "textDocument/implementation",
   "textDocument/references": "textDocument/references",
+  "textDocument/documentSymbol": "textDocument/documentSymbol",
 } as const satisfies Record<string, string>;
 
 type Method = typeof VALID_METHODS[keyof typeof VALID_METHODS];
@@ -31,6 +34,7 @@ const ProviderMap = {
   "textDocument/typeDefinition": "typeDefinitionProvider",
   "textDocument/implementation": "implementationProvider",
   "textDocument/references": "referencesProvider",
+  "textDocument/documentSymbol": "documentSymbolProvider",
 } as const satisfies Record<Method, string>;
 
 type Provider = typeof ProviderMap[keyof typeof ProviderMap];
@@ -102,6 +106,21 @@ async function makePositionParams(
   ) as TextDocumentPositionParams;
 }
 
+async function makeTextDocumentIdentifier(
+  denops: Denops,
+  bufNr: number,
+): Promise<TextDocumentIdentifier> {
+  /**
+   * @see :h vim.lsp.util.make_text_document_params()
+   * Creates a `TextDocumentIdentifier` object for the current buffer.
+   * Reference: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocumentIdentifier
+   */
+  return await denops.call(
+    `luaeval`,
+    `vim.lsp.util.make_text_document_params(${bufNr})`,
+  ) as TextDocumentIdentifier;
+}
+
 type Params = {
   method: string;
 };
@@ -148,6 +167,17 @@ export class Source extends BaseSource<Params> {
             const response = await lspRequest(denops, bufNr, method, params);
             if (response) {
               const items = referencesHandler(response);
+              controller.enqueue(items);
+            }
+            break;
+          }
+          case VALID_METHODS["textDocument/documentSymbol"]: {
+            const params = {
+              textDocument: await makeTextDocumentIdentifier(denops, bufNr),
+            };
+            const response = await lspRequest(denops, bufNr, method, params);
+            if (response) {
+              const items = symbolHandler(response, bufNr);
               controller.enqueue(items);
             }
             break;
@@ -236,4 +266,39 @@ function locationToItem(location: Location): Item<ActionData> {
     display: `${path}:${lineNr}:${col}`,
     action: { path, lineNr, col },
   };
+}
+
+function symbolHandler(
+  response: Response,
+  bufNr: number,
+): Item<ActionData>[] {
+  return response.flatMap((result) => {
+    /**
+     * Reference:
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_documentSymbol
+     */
+    const symbols = result as DocumentSymbol[] | SymbolInformation[];
+
+    return symbols.map((symbol): Item<ActionData> => {
+      if ("location" in symbol) {
+        return {
+          word: `[${symbol.kind}] ${symbol.name}`,
+          action: {
+            bufNr,
+            lineNr: symbol.location.range.start.line + 1,
+            col: symbol.location.range.start.character + 1,
+          },
+        };
+      } else {
+        return {
+          word: `[${symbol.kind}] ${symbol.name}`,
+          action: {
+            bufNr,
+            lineNr: symbol.selectionRange.start.line + 1,
+            col: symbol.selectionRange.start.character + 1,
+          },
+        };
+      }
+    });
+  });
 }
