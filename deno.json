@@ -4,5 +4,6 @@
     "lineWidth": 120,
     "indentWidth": 2,
     "singleQuote": false
-  }
+  },
+  "lock": false
 }
