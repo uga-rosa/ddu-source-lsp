@@ -16,7 +16,7 @@ export type ActionData =
   )
   & (
     | { range: Range }
-    | { range: undefined; resolve: () => Promise<Range> }
+    | { range?: undefined; resolve: () => Promise<Range | undefined> }
   );
 
 async function getRange(action: ActionData) {
@@ -34,8 +34,8 @@ type OpenParams = {
 type QuickFix = {
   bufnr?: number;
   filename?: string;
-  lnum: number;
-  col: number;
+  lnum?: number;
+  col?: number;
   text: string;
 };
 
@@ -81,10 +81,12 @@ export class Kind extends BaseKind<Params> {
         }
 
         const range = await getRange(action);
-        const { line, character } = range.start;
-        const [lineNr, col] = [line + 1, character + 1];
+        if (range) {
+          const { line, character } = range.start;
+          const [lineNr, col] = [line + 1, character + 1];
 
-        await fn.cursor(denops, lineNr, col);
+          await fn.cursor(denops, lineNr, col);
+        }
 
         // Note: Open folds and centering
         await denops.cmd("normal! zvzz");
@@ -99,15 +101,15 @@ export class Kind extends BaseKind<Params> {
     }) => {
       const { denops, items } = args;
 
-      const qfloclist = await Promise.all(items.map(async (item): Promise<QuickFix> => {
+      const qfloclist: QuickFix[] = await Promise.all(items.map(async (item) => {
         const action = item.action as ActionData;
         const range = await getRange(action);
 
         return {
           bufnr: action.bufNr,
           filename: action.path,
-          lnum: range.start.line + 1,
-          col: range.start.character + 1,
+          lnum: range ? range.start.line + 1 : undefined,
+          col: range ? range.start.character + 1 : undefined,
           text: item.word,
         };
       }));
@@ -136,7 +138,7 @@ export class Kind extends BaseKind<Params> {
       kind: "buffer",
       expr: action.bufNr,
       path: action.path,
-      lineNr: range.start.line + 1,
+      lineNr: range ? range.start.line + 1 : undefined,
     };
   }
 
