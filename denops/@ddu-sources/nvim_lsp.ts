@@ -132,9 +132,12 @@ export class Source extends BaseSource<Params> {
   gather(args: {
     denops: Denops;
     sourceParams: Params;
+    sourceOptions: SourceOptions;
     context: Context;
+    input: string;
   }): ReadableStream<Item<ActionData>[]> {
-    const { denops, sourceParams: { method }, context: { bufNr, winId } } = args;
+    const { denops, sourceParams, sourceOptions, context: ctx } = args;
+    const method = sourceParams.method;
 
     return new ReadableStream({
       async start(controller) {
@@ -142,7 +145,7 @@ export class Source extends BaseSource<Params> {
           console.log(`Unknown method: ${method}`);
           controller.close();
           return;
-        } else if (!(await isMethodSupported(denops, method, bufNr))) {
+        } else if (!(await isMethodSupported(denops, method, ctx.bufNr))) {
           controller.close();
           return;
         }
@@ -152,8 +155,8 @@ export class Source extends BaseSource<Params> {
           case VALID_METHODS["textDocument/definition"]:
           case VALID_METHODS["textDocument/typeDefinition"]:
           case VALID_METHODS["textDocument/implementation"]: {
-            const params = await makePositionParams(denops, winId);
-            const response = await lspRequest(denops, bufNr, method, params);
+            const params = await makePositionParams(denops, ctx.winId);
+            const response = await lspRequest(denops, ctx.bufNr, method, params);
             if (response) {
               const items = definitionHandler(response);
               controller.enqueue(items);
@@ -161,11 +164,11 @@ export class Source extends BaseSource<Params> {
             break;
           }
           case VALID_METHODS["textDocument/references"]: {
-            const params = await makePositionParams(denops, winId) as ReferenceParams;
+            const params = await makePositionParams(denops, ctx.winId) as ReferenceParams;
             params.context = {
               includeDeclaration: true,
             };
-            const response = await lspRequest(denops, bufNr, method, params);
+            const response = await lspRequest(denops, ctx.bufNr, method, params);
             if (response) {
               const items = referencesHandler(response);
               controller.enqueue(items);
@@ -174,11 +177,11 @@ export class Source extends BaseSource<Params> {
           }
           case VALID_METHODS["textDocument/documentSymbol"]: {
             const params = {
-              textDocument: await makeTextDocumentIdentifier(denops, bufNr),
+              textDocument: await makeTextDocumentIdentifier(denops, ctx.bufNr),
             };
-            const response = await lspRequest(denops, bufNr, method, params);
+            const response = await lspRequest(denops, ctx.bufNr, method, params);
             if (response) {
-              const items = documentSymbolHandler(response, bufNr);
+              const items = documentSymbolHandler(response, ctx.bufNr);
               controller.enqueue(items);
             }
             break;
