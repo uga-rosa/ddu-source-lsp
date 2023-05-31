@@ -81,12 +81,12 @@ function sortItemLsp(items: ItemLsp[], curBufNr: number) {
   });
 }
 
-const IconHlgroup = [
-  ["E", "ErrorMsg"],
-  ["W", "WarningMsg"],
-  ["I", ""],
-  ["H", ""],
-] as const;
+const SeverityIconHlMap = {
+  1: ["E", "ErrorMsg"],
+  2: ["W", "WarningMsg"],
+  3: ["I", ""],
+  4: ["H", ""],
+} as const satisfies Record<Severity, Readonly<[string, string]>>;
 
 async function ugaStyle(
   denops: Denops,
@@ -95,7 +95,7 @@ async function ugaStyle(
 ) {
   const { severity = 1, bufnr = 0, col, lnum } = diagnostic;
 
-  const [icon, hl_group] = IconHlgroup[severity - 1];
+  const [icon, hl_group] = SeverityIconHlMap[severity];
   if (hl_group) {
     item.highlights = [{
       name: "nvim-lsp-sign",
