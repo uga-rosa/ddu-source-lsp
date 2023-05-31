@@ -1,6 +1,6 @@
-import { BaseFilter, DduItem } from "https://deno.land/x/ddu_vim@v2.8.6/types.ts";
+import { BaseFilter, DduItem } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { KindName } from "../@ddu-sources/nvim_lsp.ts";
-import { SymbolKind } from "npm:vscode-languageserver-types@3.17.3";
+import { SymbolKind } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 const KindIcon = {
   File: "",

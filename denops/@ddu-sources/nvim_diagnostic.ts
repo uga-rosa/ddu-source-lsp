@@ -1,6 +1,6 @@
-import { BaseSource, Context, Item } from "https://deno.land/x/ddu_vim@v2.8.6/types.ts#^";
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.8.6/deps.ts#^";
-import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.1/file.ts#^";
+import { BaseSource, Context, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
+import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { relative } from "https://deno.land/std@0.190.0/path/mod.ts";
 
 /** @see :h vim.diagnostic.severity */

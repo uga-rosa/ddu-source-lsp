@@ -5,9 +5,9 @@ import {
   DduItem,
   PreviewContext,
   Previewer,
-} from "https://deno.land/x/ddu_vim@v2.9.0/types.ts";
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.0/deps.ts";
-import { Range } from "npm:vscode-languageserver-types@3.17.3";
+} from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
+import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { Range } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 export type ActionData =
   & (

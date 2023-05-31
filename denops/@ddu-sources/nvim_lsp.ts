@@ -1,5 +1,5 @@
-import { BaseSource, Context, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.8.6/types.ts#^";
-import { Denops } from "https://deno.land/x/ddu_vim@v2.8.6/deps.ts#^";
+import { BaseSource, Context, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
+import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "../@ddu-kinds/nvim_lsp.ts";
 import {
   DocumentSymbol,
@@ -11,7 +11,7 @@ import {
   SymbolKind,
   TextDocumentIdentifier,
   WorkspaceSymbol,
-} from "npm:vscode-languageserver-types@3.17.3";
+} from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 const VALID_METHODS = {
   "textDocument/declaration": "textDocument/declaration",
