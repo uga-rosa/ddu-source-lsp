@@ -271,6 +271,7 @@ function locationToItem(
       path,
       range: location.range,
     },
+    data: location,
   };
 }
 
@@ -295,32 +296,26 @@ function documentSymbolHandler(
 
     return symbols.map((symbol) => {
       const kindName = KindName[symbol.kind];
-      const kindIcon = KindIcon[kindName];
-      const kind = `${kindIcon} [${kindName}]`.padEnd(17, " ");
-      const word = `${kind} ${symbol.name}`;
-      const highlights = [{
-        name: "nvim-lsp-symbol",
-        hl_group: KindHl[kindName] as string,
-        col: 1,
-        width: 19, // The byte length of icon is 3.
-      }];
+      const kind = `[${kindName}]`.padEnd(15, " ");
       if ("location" in symbol) {
+        // symbol is SymbolInformation
         return {
-          word,
-          highlights,
+          word: `${kind} ${symbol.name}`,
           action: {
             path: uriToPath(symbol.location.uri),
             range: symbol.location.range,
           },
+          data: symbol,
         };
       } else {
+        // symbol is DocumentSymbol
         return {
-          word,
-          highlights,
+          word: `${kind} ${symbol.name}`,
           action: {
             bufNr,
             range: symbol.selectionRange,
           },
+          data: symbol,
         };
       }
     });
@@ -333,7 +328,7 @@ function documentSymbolHandler(
   return items;
 }
 
-const KindName = {
+export const KindName = {
   1: "File",
   2: "Module",
   3: "Namespace",
@@ -362,62 +357,4 @@ const KindName = {
   26: "TypeParameter",
 } as const satisfies Record<SymbolKind, string>;
 
-type KindName = typeof KindName[keyof typeof KindName];
-
-const KindIcon = {
-  File: "",
-  Module: "",
-  Namespace: "",
-  Package: "",
-  Class: "",
-  Method: "",
-  Property: "",
-  Field: "",
-  Constructor: "",
-  Enum: "",
-  Interface: "",
-  Function: "",
-  Variable: "",
-  Constant: "",
-  String: "",
-  Number: "",
-  Boolean: "",
-  Array: "",
-  Object: "",
-  Key: "",
-  Null: "",
-  EnumMember: "",
-  Struct: "",
-  Event: "",
-  Operator: "",
-  TypeParameter: "",
-} as const satisfies Record<KindName, string>;
-
-const KindHl = {
-  File: "Structure",
-  Module: "Structure",
-  Namespace: "Structure",
-  Package: "Structure",
-  Class: "Structure",
-  Method: "Function",
-  Property: "Identifier",
-  Field: "Identifier",
-  Constructor: "Structure",
-  Enum: "Type",
-  Interface: "Type",
-  Function: "Function",
-  Variable: "Identifier",
-  Constant: "Constant",
-  String: "String",
-  Number: "Number",
-  Boolean: "Boolean",
-  Array: "Structure",
-  Object: "Structure",
-  Key: "Identifier",
-  Null: "Special",
-  EnumMember: "Identifier",
-  Struct: "Structure",
-  Event: "Type",
-  Operator: "Operator",
-  TypeParameter: "Type",
-} as const satisfies Record<KindName, string>;
+export type KindName = typeof KindName[keyof typeof KindName];
