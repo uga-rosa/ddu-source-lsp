@@ -1,4 +1,4 @@
-import { BaseSource, Context, Item } from "https://deno.land/x/ddu_vim@v2.8.6/types.ts#^";
+import { BaseSource, Context, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.8.6/types.ts#^";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.8.6/deps.ts#^";
 import { ActionData } from "../@ddu-kinds/nvim_lsp.ts";
 import {
@@ -10,6 +10,7 @@ import {
   SymbolInformation,
   SymbolKind,
   TextDocumentIdentifier,
+  WorkspaceSymbol,
 } from "npm:vscode-languageserver-types@3.17.3";
 
 const VALID_METHODS = {
@@ -19,6 +20,7 @@ const VALID_METHODS = {
   "textDocument/implementation": "textDocument/implementation",
   "textDocument/references": "textDocument/references",
   "textDocument/documentSymbol": "textDocument/documentSymbol",
+  "workspace/symbol": "workspace/symbol",
 } as const satisfies Record<string, string>;
 
 type Method = typeof VALID_METHODS[keyof typeof VALID_METHODS];
@@ -36,6 +38,7 @@ const ProviderMap = {
   "textDocument/implementation": "implementationProvider",
   "textDocument/references": "referencesProvider",
   "textDocument/documentSymbol": "documentSymbolProvider",
+  "workspace/symbol": "workspaceSymbolProvider",
 } as const satisfies Record<Method, string>;
 
 type Provider = typeof ProviderMap[keyof typeof ProviderMap];
@@ -112,7 +115,7 @@ type Response = unknown[];
 async function lspRequest(
   denops: Denops,
   bufnr: number,
-  method: Method,
+  method: Method | "workspaceSymbol/resolve",
   params: unknown,
 ): Promise<Response | null> {
   return await denops.call(
@@ -124,6 +127,7 @@ async function lspRequest(
 
 type Params = {
   method: string;
+  query: string;
 };
 
 export class Source extends BaseSource<Params> {
@@ -186,6 +190,17 @@ export class Source extends BaseSource<Params> {
             }
             break;
           }
+          case VALID_METHODS["workspace/symbol"]: {
+            const params = {
+              query: sourceOptions.volatile ? args.input : sourceParams.query,
+            };
+            const response = await lspRequest(denops, ctx.bufNr, method, params);
+            if (response) {
+              const items = workspaceSymbolHandler(response, denops, ctx.bufNr);
+              controller.enqueue(items);
+            }
+            break;
+          }
           default: {
             method satisfies never;
           }
@@ -199,6 +214,7 @@ export class Source extends BaseSource<Params> {
   params(): Params {
     return {
       method: "",
+      query: "",
     };
   }
 }
@@ -361,3 +377,45 @@ export const KindName = {
 } as const satisfies Record<SymbolKind, string>;
 
 export type KindName = typeof KindName[keyof typeof KindName];
+
+function workspaceSymbolHandler(
+  response: Response,
+  denops: Denops,
+  bufNr: number,
+): Item<ActionData>[] {
+  return response.flatMap((result) => {
+    /**
+     * Reference:
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbol
+     */
+    const symbols = result as SymbolInformation[] | WorkspaceSymbol[];
+    return symbols.map((symbol) => {
+      let action;
+      if ("range" in symbol.location) {
+        action = {
+          path: uriToPath(symbol.location.uri),
+          range: symbol.location.range,
+        };
+      } else {
+        action = {
+          path: uriToPath(symbol.location.uri),
+          resolve: async () => {
+            const resolveResponse = await lspRequest(denops, bufNr, "workspaceSymbol/resolve", symbol);
+            if (resolveResponse) {
+              const workspaceSymbol = resolveResponse[0] as WorkspaceSymbol;
+              return (workspaceSymbol.location as Location).range;
+            }
+          },
+        };
+      }
+
+      const kindName = KindName[symbol.kind];
+      const kind = `[${kindName}]`.padEnd(15, " ");
+      return {
+        word: `${kind} ${symbol.name}`,
+        action,
+        data: symbol,
+      };
+    });
+  });
+}

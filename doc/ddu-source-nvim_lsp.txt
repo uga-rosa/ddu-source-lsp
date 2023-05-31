@@ -45,15 +45,44 @@ EXAMPLES				*ddu-source-nvim_lsp-examples*
 	    \   },
 	    \ }
 	    \})
+
+	call ddu#start(#{
+	    \ sync: v:true,
+	    \ sources: [#{
+	    \   name: 'nvim_lsp',
+	    \   params: #{
+	    \     method: 'workspace/symbol',
+	    \   }
+	    \ }],
+	    \ sourceOptions: #{
+	    \   nvim_lsp: #{
+	    \     volatile: v:true,
+	    \   },
+	    \ },
+	    \ uiParams: #{
+	    \   ff: #{
+	    \     ignoreEmpty: v:false
+	    \   },
+	    \ }
+	    \})
 <
 
 ==============================================================================
 PARAMS						*ddu-source-nvim_lsp-params*
 
 					*ddu-source-nvim_lsp-param-method*
-method		(string)
+method	(string)
 	The method to be invoked.
 	See |ddu-source-nvim_lsp-supported-methods|.
+
+	Default: ""
+
+					*ddu-source-nvim_lsp-params-query*
+query	(string)
+	Used by workspace/symbol method.
+	A query string to filter symbols by. Clients may send an empty string
+	here to request all symbols. If you would like to filter dynamically,
+	use |ddu-source-option-volatile|.
 
 	Default: ""
 
@@ -67,6 +96,7 @@ SUPPORTED METHODS			*ddu-source-nvim_lsp-supported-methods*
 - textDocument/implementation
 - textDocument/references
 - textDocument/documentSymbol
+- workspace/symbol
 
 
 ==============================================================================
