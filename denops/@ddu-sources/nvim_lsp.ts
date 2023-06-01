@@ -230,17 +230,7 @@ export class Source extends BaseSource<Params> {
                   const callHierarchyItem = callHierarchyItems[0];
                   await resolve(callHierarchyItem);
                 } else {
-                  const items = callHierarchyItems.map((item) => {
-                    return {
-                      word: item.name,
-                      action: {
-                        path: uriToPath(item.uri),
-                        range: item.selectionRange,
-                      },
-                      data: item,
-                      isTree: true,
-                    };
-                  });
+                  const items = callHierarchyItems.map(callHierarchyItemToItem);
                   controller.enqueue(items);
                 }
               }
@@ -513,4 +503,18 @@ function callHierarchyHandler(
       });
     });
   });
+}
+
+function callHierarchyItemToItem(
+  item: CallHierarchyItem,
+): Item<ActionData> {
+  return {
+    word: item.name,
+    action: {
+      path: uriToPath(item.uri),
+      range: item.selectionRange,
+    },
+    data: item,
+    isTree: true,
+  };
 }
