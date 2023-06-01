@@ -10,6 +10,8 @@ Supported methods are:
 - textDocument/references
 - textDocument/documentSymbol
 - workspace/symbol
+- callHierarchy/incomingCalls
+- callHierarchy/outgoingCalls
 
 # ddu-source-nvim_diagnostic
 

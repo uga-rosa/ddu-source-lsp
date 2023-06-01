@@ -97,6 +97,8 @@ SUPPORTED METHODS			*ddu-source-nvim_lsp-supported-methods*
 - textDocument/references
 - textDocument/documentSymbol
 - workspace/symbol
+- callHierarchy/incomingCalls
+- callHierarchy/outgoingCalls
 
 
 ==============================================================================
