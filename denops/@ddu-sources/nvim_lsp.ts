@@ -223,6 +223,9 @@ export class Source extends BaseSource<Params> {
               const hierarchyParent = parent.data as CallHierarchyItem;
               const children = await searchChildren(hierarchyParent);
               if (children && children.length > 0) {
+                children.forEach((child) => {
+                  child.treePath = `${parent.treePath}/${(child.data as CallHierarchyItem).name}`;
+                });
                 parent.isTree = true;
                 parent.data = {
                   ...hierarchyParent,
@@ -530,6 +533,7 @@ function callHierarchyItemToItem(
       path: uriToPath(item.uri),
       range: item.selectionRange,
     },
+    treePath: `/${item.name}`,
     data: item,
   };
 }
