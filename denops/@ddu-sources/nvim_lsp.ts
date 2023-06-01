@@ -214,7 +214,7 @@ export class Source extends BaseSource<Params> {
             const resolve = async (callHierarchyItem: CallHierarchyItem) => {
               const response = await lspRequest(denops, ctx.bufNr, method, { item: callHierarchyItem });
               if (response) {
-                const items = hierarchyHandler(response);
+                const items = callHierarchyHandler(response);
                 controller.enqueue(items);
               }
             };
@@ -485,7 +485,7 @@ async function prepareCallHierarchy(
   }
 }
 
-function hierarchyHandler(
+function callHierarchyHandler(
   response: Response,
 ): Item<ActionData>[] {
   return response.flatMap((result) => {
