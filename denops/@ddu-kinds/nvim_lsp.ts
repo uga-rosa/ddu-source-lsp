@@ -53,6 +53,9 @@ export class Kind extends BaseKind<Params> {
       const params = actionParams as OpenParams;
       const openCommand = params.command ?? "edit";
 
+      // Add original location to jumplist
+      await denops.cmd("normal! m`");
+
       for (const item of items) {
         const action = item?.action as ActionData;
         if (!action) {
