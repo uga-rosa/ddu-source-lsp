@@ -491,12 +491,11 @@ function callHierarchyHandler(
 
     return calls.flatMap((call) => {
       const linkItem = "from" in call ? call.from : call.to;
-      const position = linkItem.selectionRange.start;
       const path = uriToPath(linkItem.uri);
       return call.fromRanges.map((range) => {
         return {
           word: linkItem.name,
-          display: `${linkItem.name}:${position.line + 1}:${position.character + 1}`,
+          display: `${linkItem.name}:${range.start.line + 1}:${range.start.character + 1}`,
           action: {
             path,
             range,
