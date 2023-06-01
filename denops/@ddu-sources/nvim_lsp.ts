@@ -234,10 +234,12 @@ export class Source extends BaseSource<Params> {
               return item;
             };
 
-            if (isLike({ parent: { data: { children: [] } } }, args)) {
-              // expandItem
-              const resolvedChildren = await Promise.all(args.parent.data.children.map(peek));
-              controller.enqueue(resolvedChildren);
+            if (args.parent) {
+              // called from expandItem
+              if (isLike({ data: { children: [] } }, args.parent)) {
+                const resolvedChildren = await Promise.all(args.parent.data.children.map(peek));
+                controller.enqueue(resolvedChildren);
+              }
             } else {
               const params = await makePositionParams(denops, ctx.winId);
               const callHierarchyItems = await prepareCallHierarchy(denops, ctx.bufNr, params);
