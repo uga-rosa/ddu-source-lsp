@@ -47,7 +47,6 @@ EXAMPLES				*ddu-source-nvim_lsp-examples*
 	    \})
 
 	call ddu#start(#{
-	    \ sync: v:true,
 	    \ sources: [#{
 	    \   name: 'nvim_lsp',
 	    \   params: #{
@@ -62,6 +61,26 @@ EXAMPLES				*ddu-source-nvim_lsp-examples*
 	    \ uiParams: #{
 	    \   ff: #{
 	    \     ignoreEmpty: v:false
+	    \   },
+	    \ }
+	    \})
+
+	call ddu#start(#{
+	    \ sources: [#{
+	    \   name: 'nvim_lsp',
+	    \   params: #{
+	    \     method: 'callHierarchy/incomingCalls',
+	    \   }
+	    \ }],
+	    \ sourceOptions: #{
+	    \   nvim_lsp: #{
+	    \     volatile: v:true,
+	    \   },
+	    \ },
+	    \ uiParams: #{
+	    \   ff: #{
+	    \     displayTree: v:true,
+	    \     startFilter: v:false,
 	    \   },
 	    \ }
 	    \})
