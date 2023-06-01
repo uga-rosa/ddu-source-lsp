@@ -72,11 +72,6 @@ EXAMPLES				*ddu-source-nvim_lsp-examples*
 	    \     method: 'callHierarchy/incomingCalls',
 	    \   }
 	    \ }],
-	    \ sourceOptions: #{
-	    \   nvim_lsp: #{
-	    \     volatile: v:true,
-	    \   },
-	    \ },
 	    \ uiParams: #{
 	    \   ff: #{
 	    \     displayTree: v:true,
