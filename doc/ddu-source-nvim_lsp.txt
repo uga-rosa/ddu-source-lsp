@@ -99,9 +99,13 @@ method	(string)
 					*ddu-source-nvim_lsp-params-query*
 query	(string)
 	Used by workspace/symbol method.
-	A query string to filter symbols by. Clients may send an empty string
-	here to request all symbols. If you would like to filter dynamically,
-	use |ddu-source-option-volatile|.
+	A query string is used to filter symbols. Clients may send an empty
+	string to request all symbols. To dynamically filter, use
+	|ddu-source-option-volatile|.
+
+	Note: While the Language Server Protocol specification allows for an
+	empty query, certain language server implementations may not return
+	any results in such instances.
 
 	Default: ""
 
@@ -110,14 +114,56 @@ query	(string)
 SUPPORTED METHODS			*ddu-source-nvim_lsp-supported-methods*
 
 - textDocument/declaration
+	Lists the declaration locations of a symbol at the cursor position.
+
 - textDocument/definition
+	Lists the definition locations of a symbol at the cursor position.
+
 - textDocument/typeDefinition
+	Lists the type definition locations of a symbol at the cursor position.
+
 - textDocument/implementation
+	Lists the implementation locations of a symbol at the cursor position.
+
 - textDocument/references
+	Lists project-wide references for the symbol denoted by the cursor
+	position.
+
 - textDocument/documentSymbol
+	Lists the document symbols in the current buffer.
+
 - workspace/symbol
+	Lists the document symbols in the current workspace. The query option
+	(|ddu-source-nvim_lsp-params-query|) is used to filter the symbols.
+	The |ddu-source-option-volatile| can also be used, in which case the
+	query option is ignored.
+
 - callHierarchy/incomingCalls
 - callHierarchy/outgoingCalls
+	Lists the call hierarchy in a tree structure. Use
+	|ddu-ui-ff-action-expandItem| to expand the tree.
+
+	For a function calling structure as depicted below,
+>
+	function foo() {
+	  bar();
+	}
+	function bar() {
+	  baz();
+	}
+	function baz() {}
+<
+	the respective call hierarchy trees would look like this:
+
+		- incomingCalls
+			- baz
+			  - bar
+			    - foo
+
+		- outgoingCalls
+			- foo
+			  - bar
+			    - baz
 
 
 ==============================================================================
