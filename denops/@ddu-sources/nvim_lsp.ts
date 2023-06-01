@@ -1,7 +1,10 @@
-import { BaseSource, Context, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
+import { BaseSource, Context, DduItem, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "../@ddu-kinds/nvim_lsp.ts";
 import {
+  CallHierarchyIncomingCall,
+  CallHierarchyItem,
+  CallHierarchyOutgoingCall,
   DocumentSymbol,
   Location,
   LocationLink,
@@ -21,6 +24,8 @@ const VALID_METHODS = {
   "textDocument/references": "textDocument/references",
   "textDocument/documentSymbol": "textDocument/documentSymbol",
   "workspace/symbol": "workspace/symbol",
+  "callHierarchy/incomingCalls": "callHierarchy/incomingCalls",
+  "callHierarchy/outgoingCalls": "callHierarchy/outgoingCalls",
 } as const satisfies Record<string, string>;
 
 type Method = typeof VALID_METHODS[keyof typeof VALID_METHODS];
@@ -39,6 +44,8 @@ const ProviderMap = {
   "textDocument/references": "referencesProvider",
   "textDocument/documentSymbol": "documentSymbolProvider",
   "workspace/symbol": "workspaceSymbolProvider",
+  "callHierarchy/incomingCalls": "callHierarchyProvider",
+  "callHierarchy/outgoingCalls": "callHierarchyProvider",
 } as const satisfies Record<Method, string>;
 
 type Provider = typeof ProviderMap[keyof typeof ProviderMap];
@@ -115,7 +122,7 @@ type Response = unknown[];
 async function lspRequest(
   denops: Denops,
   bufnr: number,
-  method: Method | "workspaceSymbol/resolve",
+  method: Method | "workspaceSymbol/resolve" | "textDocument/prepareCallHierarchy",
   params: unknown,
 ): Promise<Response | null> {
   return await denops.call(
@@ -139,6 +146,7 @@ export class Source extends BaseSource<Params> {
     sourceOptions: SourceOptions;
     context: Context;
     input: string;
+    parent?: DduItem;
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, sourceOptions, context: ctx } = args;
     const method = sourceParams.method;
@@ -198,6 +206,44 @@ export class Source extends BaseSource<Params> {
             if (response) {
               const items = workspaceSymbolHandler(response, denops, ctx.bufNr);
               controller.enqueue(items);
+            }
+            break;
+          }
+          case VALID_METHODS["callHierarchy/incomingCalls"]:
+          case VALID_METHODS["callHierarchy/outgoingCalls"]: {
+            const resolve = async (callHierarchyItem: CallHierarchyItem) => {
+              const response = await lspRequest(denops, ctx.bufNr, method, { item: callHierarchyItem });
+              if (response) {
+                const items = hierarchyHandler(response);
+                controller.enqueue(items);
+              }
+            };
+
+            if (args.parent) {
+              const callHierarchyItem = args.parent.data as CallHierarchyItem;
+              await resolve(callHierarchyItem);
+            } else {
+              const params = await makePositionParams(denops, ctx.winId);
+              const callHierarchyItems = await prepareCallHierarchy(denops, ctx.bufNr, params);
+              if (callHierarchyItems) {
+                if (callHierarchyItems.length === 1) {
+                  const callHierarchyItem = callHierarchyItems[0];
+                  await resolve(callHierarchyItem);
+                } else {
+                  const items = callHierarchyItems.map((item) => {
+                    return {
+                      word: item.name,
+                      action: {
+                        path: uriToPath(item.uri),
+                        range: item.selectionRange,
+                      },
+                      data: item,
+                      isTree: true,
+                    };
+                  });
+                  controller.enqueue(items);
+                }
+              }
             }
             break;
           }
@@ -389,6 +435,7 @@ function workspaceSymbolHandler(
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbol
      */
     const symbols = result as SymbolInformation[] | WorkspaceSymbol[];
+
     return symbols.map((symbol) => {
       let action;
       if ("range" in symbol.location) {
@@ -416,6 +463,54 @@ function workspaceSymbolHandler(
         action,
         data: symbol,
       };
+    });
+  });
+}
+
+async function prepareCallHierarchy(
+  denops: Denops,
+  bufNr: number,
+  params: TextDocumentPositionParams,
+): Promise<CallHierarchyItem[] | undefined> {
+  const response = await lspRequest(denops, bufNr, "textDocument/prepareCallHierarchy", params);
+  if (response) {
+    return response.flatMap((result) => {
+      /**
+       * Reference:
+       * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_prepareCallHierarchy
+       */
+      const callHierarchyItems = result as CallHierarchyItem[];
+      return callHierarchyItems;
+    });
+  }
+}
+
+function hierarchyHandler(
+  response: Response,
+): Item<ActionData>[] {
+  return response.flatMap((result) => {
+    /**
+     * References:
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_incomingCalls
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_outgoingCalls
+     */
+    const calls = result as CallHierarchyIncomingCall[] | CallHierarchyOutgoingCall[];
+    return calls.flatMap((call) => {
+      const linkItem = "from" in call ? call.from : call.to;
+      const position = linkItem.selectionRange.start;
+      const path = uriToPath(linkItem.uri);
+      return call.fromRanges.map((range) => {
+        return {
+          word: linkItem.name,
+          display: `${linkItem.name}:${position.line + 1}:${position.character + 1}`,
+          action: {
+            path,
+            range,
+          },
+          isTree: true,
+          data: linkItem,
+        };
+      });
     });
   });
 }
