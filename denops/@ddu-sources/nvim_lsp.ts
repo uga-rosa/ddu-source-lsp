@@ -219,19 +219,19 @@ export class Source extends BaseSource<Params> {
               }
             };
 
-            const peek = async (item: Item<ActionData>) => {
-              const parent = item.data as CallHierarchyItem;
-              const children = await searchChildren(parent);
+            const peek = async (parent: Item<ActionData>) => {
+              const hierarchyParent = parent.data as CallHierarchyItem;
+              const children = await searchChildren(hierarchyParent);
               if (children && children.length > 0) {
-                item.isTree = true;
-                item.data = {
-                  ...parent,
+                parent.isTree = true;
+                parent.data = {
+                  ...hierarchyParent,
                   children,
                 };
               } else {
-                item.isTree = false;
+                parent.isTree = false;
               }
-              return item;
+              return parent;
             };
 
             if (args.parent) {
