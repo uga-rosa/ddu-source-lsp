@@ -15,6 +15,7 @@ import {
   TextDocumentIdentifier,
   WorkspaceSymbol,
 } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 
 const VALID_METHODS = {
   "textDocument/declaration": "textDocument/declaration",
@@ -211,28 +212,42 @@ export class Source extends BaseSource<Params> {
           }
           case VALID_METHODS["callHierarchy/incomingCalls"]:
           case VALID_METHODS["callHierarchy/outgoingCalls"]: {
-            const resolve = async (callHierarchyItem: CallHierarchyItem) => {
+            const searchChildren = async (callHierarchyItem: CallHierarchyItem) => {
               const response = await lspRequest(denops, ctx.bufNr, method, { item: callHierarchyItem });
               if (response) {
-                const items = callHierarchyHandler(response);
-                controller.enqueue(items);
+                return callHierarchyHandler(response);
               }
             };
 
-            if (args.parent) {
-              const callHierarchyItem = args.parent.data as CallHierarchyItem;
-              await resolve(callHierarchyItem);
+            const peek = async (item: Item<ActionData>) => {
+              const parent = item.data as CallHierarchyItem;
+              const children = await searchChildren(parent);
+              if (children && children.length > 0) {
+                item = {
+                  ...item,
+                  isTree: true,
+                  data: {
+                    ...parent,
+                    children,
+                  },
+                };
+              } else {
+                item.isTree = false;
+              }
+              return item;
+            };
+
+            if (isLike({ parent: { data: { children: [] } } }, args)) {
+              // expandItem
+              const resolvedChildren = await Promise.all(args.parent.data.children.map(peek));
+              controller.enqueue(resolvedChildren);
             } else {
               const params = await makePositionParams(denops, ctx.winId);
               const callHierarchyItems = await prepareCallHierarchy(denops, ctx.bufNr, params);
-              if (callHierarchyItems) {
-                if (callHierarchyItems.length === 1) {
-                  const callHierarchyItem = callHierarchyItems[0];
-                  await resolve(callHierarchyItem);
-                } else {
-                  const items = callHierarchyItems.map(callHierarchyItemToItem);
-                  controller.enqueue(items);
-                }
+              if (callHierarchyItems && callHierarchyItems.length > 0) {
+                const items = callHierarchyItems.map(callHierarchyItemToItem);
+                const resolvedItems = await Promise.all(items.map(peek));
+                controller.enqueue(resolvedItems);
               }
             }
             break;
@@ -500,7 +515,6 @@ function callHierarchyHandler(
             path,
             range,
           },
-          isTree: true,
           data: linkItem,
         };
       });
@@ -518,6 +532,5 @@ function callHierarchyItemToItem(
       range: item.selectionRange,
     },
     data: item,
-    isTree: true,
   };
 }
