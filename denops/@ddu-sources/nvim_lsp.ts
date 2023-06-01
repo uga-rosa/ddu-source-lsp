@@ -223,13 +223,10 @@ export class Source extends BaseSource<Params> {
               const parent = item.data as CallHierarchyItem;
               const children = await searchChildren(parent);
               if (children && children.length > 0) {
-                item = {
-                  ...item,
-                  isTree: true,
-                  data: {
-                    ...parent,
-                    children,
-                  },
+                item.isTree = true;
+                item.data = {
+                  ...parent,
+                  children,
                 };
               } else {
                 item.isTree = false;
