@@ -439,6 +439,9 @@ function workspaceSymbolHandler(
           resolve: async () => {
             const resolveResponse = await lspRequest(denops, bufNr, "workspaceSymbol/resolve", symbol);
             if (resolveResponse) {
+              /**
+               * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
+               */
               const workspaceSymbol = resolveResponse[0] as WorkspaceSymbol;
               return (workspaceSymbol.location as Location).range;
             }
@@ -485,6 +488,7 @@ function callHierarchyHandler(
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_outgoingCalls
      */
     const calls = result as CallHierarchyIncomingCall[] | CallHierarchyOutgoingCall[];
+
     return calls.flatMap((call) => {
       const linkItem = "from" in call ? call.from : call.to;
       const position = linkItem.selectionRange.start;
