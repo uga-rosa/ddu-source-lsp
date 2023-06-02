@@ -16,6 +16,7 @@ import {
   WorkspaceSymbol,
 } from "npm:vscode-languageserver-types@3.17.4-next.0";
 import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
+import { isAbsolute, toFileUrl } from "https://deno.land/std@0.190.0/path/mod.ts";
 
 const VALID_METHODS = {
   "textDocument/declaration": "textDocument/declaration",
@@ -89,32 +90,29 @@ interface ReferenceParams extends TextDocumentPositionParams {
 
 async function makePositionParams(
   denops: Denops,
+  bufNr: number,
   winId: number,
 ): Promise<TextDocumentPositionParams> {
-  /**
-   * @see :h vim.lsp.util.make_position_params()
-   * Creates a `TextDocumentPositionParams` object for the current buffer and cursor position.
-   * Reference: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocumentPositionParams
-   */
-  return await denops.call(
-    `luaeval`,
-    `vim.lsp.util.make_position_params(${winId})`,
-  ) as TextDocumentPositionParams;
+  const [_, lnum, col] = await fn.getcurpos(denops, winId);
+  const position: Position = {
+    // 1-index to 0-index
+    line: lnum - 1,
+    character: col - 1,
+  };
+
+  return {
+    textDocument: await makeTextDocumentIdentifier(denops, bufNr),
+    position,
+  };
 }
 
 async function makeTextDocumentIdentifier(
   denops: Denops,
   bufNr: number,
 ): Promise<TextDocumentIdentifier> {
-  /**
-   * @see :h vim.lsp.util.make_text_document_params()
-   * Creates a `TextDocumentIdentifier` object for the current buffer.
-   * Reference: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocumentIdentifier
-   */
-  return await denops.call(
-    `luaeval`,
-    `vim.lsp.util.make_text_document_params(${bufNr})`,
-  ) as TextDocumentIdentifier;
+  const filepath = await denops.eval(`fnamemodify(bufname(${bufNr}), ":p")`) as string;
+  const uri = isAbsolute(filepath) ? toFileUrl(filepath).href : filepath;
+  return { uri };
 }
 
 /** Array of results per client */
@@ -168,7 +166,7 @@ export class Source extends BaseSource<Params> {
           case VALID_METHODS["textDocument/definition"]:
           case VALID_METHODS["textDocument/typeDefinition"]:
           case VALID_METHODS["textDocument/implementation"]: {
-            const params = await makePositionParams(denops, ctx.winId);
+            const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
             const response = await lspRequest(denops, ctx.bufNr, method, params);
             if (response) {
               const items = definitionHandler(response);
@@ -177,7 +175,7 @@ export class Source extends BaseSource<Params> {
             break;
           }
           case VALID_METHODS["textDocument/references"]: {
-            const params = await makePositionParams(denops, ctx.winId) as ReferenceParams;
+            const params = await makePositionParams(denops, ctx.bufNr, ctx.winId) as ReferenceParams;
             params.context = {
               includeDeclaration: true,
             };
@@ -244,7 +242,7 @@ export class Source extends BaseSource<Params> {
                 controller.enqueue(resolvedChildren);
               }
             } else {
-              const params = await makePositionParams(denops, ctx.winId);
+              const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
               const callHierarchyItems = await prepareCallHierarchy(denops, ctx.bufNr, params);
               if (callHierarchyItems && callHierarchyItems.length > 0) {
                 const items = callHierarchyItems.map(callHierarchyItemToItem);
