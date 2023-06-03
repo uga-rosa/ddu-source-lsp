@@ -18,6 +18,17 @@ import {
 import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 import { isAbsolute, toFileUrl } from "https://deno.land/std@0.190.0/path/mod.ts";
 
+const VALID_CLIENT_NAME = {
+  "nvim-lsp": "nvim-lsp",
+  "coc.nvim": "coc.nvim",
+} as const satisfies Record<string, string>;
+
+type ClientName = typeof VALID_CLIENT_NAME[keyof typeof VALID_CLIENT_NAME];
+
+function isClientName(clientName: string): clientName is ClientName {
+  return Object.values(VALID_CLIENT_NAME).some((name) => clientName === name);
+}
+
 const VALID_METHODS = {
   "textDocument/declaration": "textDocument/declaration",
   "textDocument/definition": "textDocument/definition",
@@ -105,6 +116,7 @@ async function lspRequest(
 }
 
 type Params = {
+  clientName: ClientName;
   method: string;
   query: string;
 };
@@ -121,11 +133,15 @@ export class Source extends BaseSource<Params> {
     parent?: DduItem;
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, sourceOptions, context: ctx } = args;
-    const method = sourceParams.method;
+    const { clientName, method } = sourceParams;
 
     return new ReadableStream({
       async start(controller) {
-        if (!isMethod(method)) {
+        if (!isClientName(clientName)) {
+          console.log(`Unknown client name: ${clientName}`);
+          controller.close();
+          return;
+        } else if (!isMethod(method)) {
           console.log(`Unknown method: ${method}`);
           controller.close();
           return;
@@ -245,6 +261,7 @@ export class Source extends BaseSource<Params> {
 
   params(): Params {
     return {
+      clientName: "nvim-lsp",
       method: "",
       query: "",
     };
