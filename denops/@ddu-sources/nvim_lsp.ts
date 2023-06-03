@@ -29,7 +29,7 @@ function isClientName(clientName: string): clientName is ClientName {
   return Object.values(VALID_CLIENT_NAME).some((name) => clientName === name);
 }
 
-const VALID_METHODS = {
+const VALID_METHOD = {
   "textDocument/declaration": "textDocument/declaration",
   "textDocument/definition": "textDocument/definition",
   "textDocument/typeDefinition": "textDocument/typeDefinition",
@@ -41,12 +41,12 @@ const VALID_METHODS = {
   "callHierarchy/outgoingCalls": "callHierarchy/outgoingCalls",
 } as const satisfies Record<string, string>;
 
-type Method = typeof VALID_METHODS[keyof typeof VALID_METHODS];
+type Method = typeof VALID_METHOD[keyof typeof VALID_METHOD];
 
 function isMethod(
   method: string,
 ): method is Method {
-  return Object.values(VALID_METHODS).some((m) => method === m);
+  return Object.values(VALID_METHOD).some((m) => method === m);
 }
 
 async function isMethodSupported(
@@ -159,10 +159,10 @@ export class Source extends BaseSource<Params> {
         }
 
         switch (method) {
-          case VALID_METHODS["textDocument/declaration"]:
-          case VALID_METHODS["textDocument/definition"]:
-          case VALID_METHODS["textDocument/typeDefinition"]:
-          case VALID_METHODS["textDocument/implementation"]: {
+          case VALID_METHOD["textDocument/declaration"]:
+          case VALID_METHOD["textDocument/definition"]:
+          case VALID_METHOD["textDocument/typeDefinition"]:
+          case VALID_METHOD["textDocument/implementation"]: {
             const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
             const response = await lspRequest(denops, ctx.bufNr, method, params);
             if (response) {
@@ -171,7 +171,7 @@ export class Source extends BaseSource<Params> {
             }
             break;
           }
-          case VALID_METHODS["textDocument/references"]: {
+          case VALID_METHOD["textDocument/references"]: {
             const params = await makePositionParams(denops, ctx.bufNr, ctx.winId) as ReferenceParams;
             params.context = {
               includeDeclaration: true,
@@ -183,7 +183,7 @@ export class Source extends BaseSource<Params> {
             }
             break;
           }
-          case VALID_METHODS["textDocument/documentSymbol"]: {
+          case VALID_METHOD["textDocument/documentSymbol"]: {
             const params = {
               textDocument: await makeTextDocumentIdentifier(denops, ctx.bufNr),
             };
@@ -194,7 +194,7 @@ export class Source extends BaseSource<Params> {
             }
             break;
           }
-          case VALID_METHODS["workspace/symbol"]: {
+          case VALID_METHOD["workspace/symbol"]: {
             const params = {
               query: sourceOptions.volatile ? args.input : sourceParams.query,
             };
@@ -205,8 +205,8 @@ export class Source extends BaseSource<Params> {
             }
             break;
           }
-          case VALID_METHODS["callHierarchy/incomingCalls"]:
-          case VALID_METHODS["callHierarchy/outgoingCalls"]: {
+          case VALID_METHOD["callHierarchy/incomingCalls"]:
+          case VALID_METHOD["callHierarchy/outgoingCalls"]: {
             const searchChildren = async (callHierarchyItem: CallHierarchyItem) => {
               const response = await lspRequest(denops, ctx.bufNr, method, { item: callHierarchyItem });
               if (response) {
