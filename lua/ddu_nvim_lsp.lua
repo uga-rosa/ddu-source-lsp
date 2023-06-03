@@ -38,15 +38,33 @@ function M.request(bufNr, method, params)
   return results
 end
 
+local ProviderMap = {
+  ["textDocument/declaration"] = "declarationProvider",
+  ["textDocument/definition"] = "definitionProvider",
+  ["textDocument/typeDefinition"] = "typeDefinitionProvider",
+  ["textDocument/implementation"] = "implementationProvider",
+  ["textDocument/references"] = "referencesProvider",
+  ["textDocument/documentSymbol"] = "documentSymbolProvider",
+  ["workspace/symbol"] = "workspaceSymbolProvider",
+  ["callHierarchy/incomingCalls"] = "callHierarchyProvider",
+  ["callHierarchy/outgoingCalls"] = "callHierarchyProvider",
+}
+
 ---@param bufnr integer
----@return table[]
-function M.get_server_capabilities(bufnr)
+---@param method string
+---@return boolean?
+function M.supports_method(bufnr, method)
+  local provider = ProviderMap[method]
   local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
-  local server_capabilities = {}
-  for _, client in ipairs(clients) do
-    table.insert(server_capabilities, client.server_capabilities)
+  if #clients == 0 then
+    return
   end
-  return server_capabilities
+  for _, client in ipairs(clients) do
+    if client.server_capabilities[provider] then
+      return true
+    end
+  end
+  return false
 end
 
 return M

@@ -38,43 +38,16 @@ function isMethod(
   return Object.values(VALID_METHODS).some((m) => method === m);
 }
 
-const ProviderMap = {
-  "textDocument/declaration": "declarationProvider",
-  "textDocument/definition": "definitionProvider",
-  "textDocument/typeDefinition": "typeDefinitionProvider",
-  "textDocument/implementation": "implementationProvider",
-  "textDocument/references": "referencesProvider",
-  "textDocument/documentSymbol": "documentSymbolProvider",
-  "workspace/symbol": "workspaceSymbolProvider",
-  "callHierarchy/incomingCalls": "callHierarchyProvider",
-  "callHierarchy/outgoingCalls": "callHierarchyProvider",
-} as const satisfies Record<Method, string>;
-
-type Provider = typeof ProviderMap[keyof typeof ProviderMap];
-
 async function isMethodSupported(
   denops: Denops,
   method: Method,
   bufNr: number,
-): Promise<boolean> {
-  const serverCapabilities = await denops.call(
+): Promise<boolean | null> {
+  return await denops.call(
     `luaeval`,
-    `require('ddu_nvim_lsp').get_server_capabilities(${bufNr})`,
-  ) as Record<Provider, unknown>[];
-
-  if (serverCapabilities.length === 0) {
-    console.log("No server attached");
-    return false;
-  } else {
-    const isSupported = serverCapabilities.some((serverCapability) => {
-      const provider = ProviderMap[method];
-      return provider in serverCapability;
-    });
-    if (!isSupported) {
-      console.log(`${method} is not supported by any of the servers`);
-    }
-    return isSupported;
-  }
+    `require('ddu_nvim_lsp').supports_method(_A[1], _A[2])`,
+    [bufNr, method],
+  ) as boolean | null;
 }
 
 interface TextDocumentPositionParams {
@@ -156,7 +129,15 @@ export class Source extends BaseSource<Params> {
           console.log(`Unknown method: ${method}`);
           controller.close();
           return;
-        } else if (!(await isMethodSupported(denops, method, ctx.bufNr))) {
+        }
+
+        const isSupported = await isMethodSupported(denops, method, ctx.bufNr);
+        if (!isSupported) {
+          if (isSupported === false) {
+            console.log(`${method} is not supported by any of the servers`);
+          } else {
+            console.log("No server attached");
+          }
           controller.close();
           return;
         }
