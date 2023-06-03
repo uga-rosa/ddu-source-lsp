@@ -1,5 +1,5 @@
 import { BaseSource, Context, DduItem, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
-import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "../@ddu-kinds/nvim_lsp.ts";
 import {
   CallHierarchyIncomingCall,
