@@ -16,7 +16,11 @@ FAQ					|ddu-source-nvim_lsp-faq|
 ==============================================================================
 INTRODUCTION				*ddu-source-nvim_lsp-introduction*
 
-Ddu source for neovim's built-in lsp client.
+Ddu source for lsp.
+
+Supported lsp clients are:
+	- nvim-lsp (neovim's built-in client)
+	- coc.nvim
 
 
 ==============================================================================

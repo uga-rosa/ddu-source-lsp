@@ -50,15 +50,27 @@ function isMethod(
 }
 
 async function isMethodSupported(
+  clientName: ClientName,
   denops: Denops,
   method: Method,
   bufNr: number,
 ): Promise<boolean | null> {
-  return await denops.call(
-    `luaeval`,
-    `require('ddu_nvim_lsp').supports_method(_A[1], _A[2])`,
-    [bufNr, method],
-  ) as boolean | null;
+  switch (clientName) {
+    case VALID_CLIENT_NAME["nvim-lsp"]: {
+      return await denops.call(
+        `luaeval`,
+        `require('ddu_nvim_lsp').supports_method(_A[1], _A[2])`,
+        [bufNr, method],
+      ) as boolean | null;
+    }
+    case VALID_CLIENT_NAME["coc.nvim"]: {
+      return true;
+    }
+    default: {
+      clientName satisfies never;
+      return null;
+    }
+  }
 }
 
 interface TextDocumentPositionParams {
@@ -103,16 +115,32 @@ async function makeTextDocumentIdentifier(
 type Response = unknown[];
 
 async function lspRequest(
+  clientName: ClientName,
   denops: Denops,
-  bufnr: number,
+  bufNr: number,
   method: Method | "workspaceSymbol/resolve" | "textDocument/prepareCallHierarchy",
   params: unknown,
 ): Promise<Response | null> {
-  return await denops.call(
-    `luaeval`,
-    `require('ddu_nvim_lsp').request(${bufnr}, '${method}', _A)`,
-    params,
-  ) as Response | null;
+  switch (clientName) {
+    case "nvim-lsp": {
+      return await denops.call(
+        `luaeval`,
+        `require('ddu_nvim_lsp').request(_A[1], _A[2], _A[3])`,
+        [bufNr, method, params],
+      ) as Response | null;
+    }
+    case "coc.nvim": {
+      return await denops.call(
+        `ddu#source#lsp#coc#request`,
+        bufNr,
+        method,
+        params,
+      ) as Response | null;
+    }
+    default:
+      clientName satisfies never;
+      return null;
+  }
 }
 
 type Params = {
@@ -147,7 +175,7 @@ export class Source extends BaseSource<Params> {
           return;
         }
 
-        const isSupported = await isMethodSupported(denops, method, ctx.bufNr);
+        const isSupported = await isMethodSupported(clientName, denops, method, ctx.bufNr);
         if (!isSupported) {
           if (isSupported === false) {
             console.log(`${method} is not supported by any of the servers`);
@@ -164,7 +192,7 @@ export class Source extends BaseSource<Params> {
           case VALID_METHOD["textDocument/typeDefinition"]:
           case VALID_METHOD["textDocument/implementation"]: {
             const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
-            const response = await lspRequest(denops, ctx.bufNr, method, params);
+            const response = await lspRequest(clientName, denops, ctx.bufNr, method, params);
             if (response) {
               const items = definitionHandler(response);
               controller.enqueue(items);
@@ -176,7 +204,7 @@ export class Source extends BaseSource<Params> {
             params.context = {
               includeDeclaration: true,
             };
-            const response = await lspRequest(denops, ctx.bufNr, method, params);
+            const response = await lspRequest(clientName, denops, ctx.bufNr, method, params);
             if (response) {
               const items = referencesHandler(response);
               controller.enqueue(items);
@@ -187,7 +215,7 @@ export class Source extends BaseSource<Params> {
             const params = {
               textDocument: await makeTextDocumentIdentifier(denops, ctx.bufNr),
             };
-            const response = await lspRequest(denops, ctx.bufNr, method, params);
+            const response = await lspRequest(clientName, denops, ctx.bufNr, method, params);
             if (response) {
               const items = documentSymbolHandler(response, ctx.bufNr);
               controller.enqueue(items);
@@ -198,9 +226,9 @@ export class Source extends BaseSource<Params> {
             const params = {
               query: sourceOptions.volatile ? args.input : sourceParams.query,
             };
-            const response = await lspRequest(denops, ctx.bufNr, method, params);
+            const response = await lspRequest(clientName, denops, ctx.bufNr, method, params);
             if (response) {
-              const items = workspaceSymbolHandler(response, denops, ctx.bufNr);
+              const items = workspaceSymbolHandler(response, clientName, denops, ctx.bufNr);
               controller.enqueue(items);
             }
             break;
@@ -208,7 +236,7 @@ export class Source extends BaseSource<Params> {
           case VALID_METHOD["callHierarchy/incomingCalls"]:
           case VALID_METHOD["callHierarchy/outgoingCalls"]: {
             const searchChildren = async (callHierarchyItem: CallHierarchyItem) => {
-              const response = await lspRequest(denops, ctx.bufNr, method, { item: callHierarchyItem });
+              const response = await lspRequest(clientName, denops, ctx.bufNr, method, { item: callHierarchyItem });
               if (response) {
                 return callHierarchyHandler(response);
               }
@@ -240,7 +268,7 @@ export class Source extends BaseSource<Params> {
               }
             } else {
               const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
-              const callHierarchyItems = await prepareCallHierarchy(denops, ctx.bufNr, params);
+              const callHierarchyItems = await prepareCallHierarchy(denops, ctx.bufNr, clientName, params);
               if (callHierarchyItems && callHierarchyItems.length > 0) {
                 const items = callHierarchyItems.map(callHierarchyItemToItem);
                 const resolvedItems = await Promise.all(items.map(peek));
@@ -429,6 +457,7 @@ export type KindName = typeof KindName[keyof typeof KindName];
 
 function workspaceSymbolHandler(
   response: Response,
+  clientName: ClientName,
   denops: Denops,
   bufNr: number,
 ): Item<ActionData>[] {
@@ -450,7 +479,7 @@ function workspaceSymbolHandler(
         action = {
           path: uriToPath(symbol.location.uri),
           resolve: async () => {
-            const resolveResponse = await lspRequest(denops, bufNr, "workspaceSymbol/resolve", symbol);
+            const resolveResponse = await lspRequest(clientName, denops, bufNr, "workspaceSymbol/resolve", symbol);
             if (resolveResponse) {
               /**
                * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
@@ -476,9 +505,10 @@ function workspaceSymbolHandler(
 async function prepareCallHierarchy(
   denops: Denops,
   bufNr: number,
+  clientName: ClientName,
   params: TextDocumentPositionParams,
 ): Promise<CallHierarchyItem[] | undefined> {
-  const response = await lspRequest(denops, bufNr, "textDocument/prepareCallHierarchy", params);
+  const response = await lspRequest(clientName, denops, bufNr, "textDocument/prepareCallHierarchy", params);
   if (response) {
     return response.flatMap((result) => {
       /**
