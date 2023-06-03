@@ -16,7 +16,7 @@ import {
   WorkspaceSymbol,
 } from "npm:vscode-languageserver-types@3.17.4-next.0";
 import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
-import { isAbsolute, toFileUrl } from "https://deno.land/std@0.190.0/path/mod.ts";
+import { fromFileUrl, isAbsolute, toFileUrl } from "https://deno.land/std@0.190.0/path/mod.ts";
 
 const VALID_METHODS = {
   "textDocument/declaration": "textDocument/declaration",
@@ -327,8 +327,8 @@ function locationToItem(
 }
 
 function uriToPath(uri: string) {
-  if (uri.startsWith("file:")) {
-    return new URL(uri).pathname;
+  if (uri.startsWith("file://")) {
+    return fromFileUrl(uri);
   } else {
     return uri;
   }
