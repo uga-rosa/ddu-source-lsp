@@ -23,7 +23,11 @@ async function getRange(action: ActionData) {
   if (action.range) {
     return action.range;
   } else {
-    return await action.resolve();
+    const range = await action.resolve();
+    if (range) {
+      action.range;
+    }
+    return range;
   }
 }
 
