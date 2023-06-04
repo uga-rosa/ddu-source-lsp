@@ -62,7 +62,7 @@ export class Source extends BaseSource<Params> {
         const searchChildren = async (callHierarchyItem: CallHierarchyItem) => {
           const response = await lspRequest(denops, ctx.bufNr, clientName, method, { item: callHierarchyItem });
           if (response) {
-            return callHierarchiesToItems(response);
+            return callHierarchiesToItems(response, callHierarchyItem.uri);
           }
         };
 
@@ -149,7 +149,10 @@ async function prepareCallHierarchy(
 
 function callHierarchiesToItems(
   response: Results,
+  parentUri: string,
 ): ItemHierarchy[] {
+  const path = uriToPath(parentUri);
+
   return response.flatMap((result) => {
     /**
      * References:
@@ -160,7 +163,6 @@ function callHierarchiesToItems(
 
     return calls.flatMap((call) => {
       const linkItem = "from" in call ? call.from : call.to;
-      const path = uriToPath(linkItem.uri);
       return call.fromRanges.map((range) => {
         return {
           word: linkItem.name,
