@@ -26,3 +26,5 @@ Ddu source for diagnostic.
 Supported lsp clients are:
 - nvim-lsp (neovim's diagnostic framework)
 - coc.nvim
+
+See [doc](./doc/ddu-source-lsp_diagnostic.txt) for details.
