@@ -50,6 +50,8 @@ local ProviderMap = {
   ["callHierarchy/outgoingCalls"] = "callHierarchyProvider",
 }
 
+--- true/false as is, supported or not
+--- Return nil if no language server is attached in the buffer.
 ---@param bufnr integer
 ---@param method string
 ---@return boolean?
