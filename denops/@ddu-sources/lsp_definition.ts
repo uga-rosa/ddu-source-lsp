@@ -2,10 +2,11 @@ import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { Location, LocationLink } from "npm:vscode-languageserver-types@3.17.4-next.0";
+
 import { isFeatureSupported, lspRequest, Method, Response } from "../ddu_source_lsp/request.ts";
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams } from "../ddu_source_lsp/params.ts";
-import { fromFileUrl } from "https://deno.land/std@0.190.0/path/mod.ts";
+import { isDenoUriWithFragment, locationToItem } from "../ddu_source_lsp/util.ts";
 
 type Params = {
   clientName: ClientName;
@@ -95,42 +96,5 @@ export function toLocation(loc: Location | LocationLink): Location {
       uri: loc.targetUri,
       range: loc.targetSelectionRange,
     };
-  }
-}
-
-export function isDenoUriWithFragment(location: Location) {
-  const { uri } = location;
-  /**
-   * Workaround. https://github.com/denoland/deno/issues/19304
-   * filter deno virtual buffers with udd fragments
-   * #(^|~|<|=)
-   */
-  return /^deno:.*%23(%5E|%7E|%3C|%3D)/.test(uri);
-}
-
-function locationToItem(
-  location: Location,
-): Item<ActionData> {
-  const { uri, range } = location;
-  const path = uriToPath(uri);
-  const { line, character } = range.start;
-  const [lineNr, col] = [line + 1, character + 1];
-  return {
-    word: path,
-    display: `${path}:${lineNr}:${col}`,
-    action: {
-      path,
-      lineNr: location.range.start.line + 1,
-      col: location.range.start.character + 1,
-    },
-    data: location,
-  };
-}
-
-export function uriToPath(uri: string) {
-  if (uri.startsWith("file://")) {
-    return fromFileUrl(uri);
-  } else {
-    return uri;
   }
 }
