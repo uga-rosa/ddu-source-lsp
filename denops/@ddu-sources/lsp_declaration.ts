@@ -1,6 +1,6 @@
 import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { ActionData } from "../@ddu-kinds/nvim_lsp.ts";
+import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { isFeatureSupported, lspRequest, Method } from "../ddu_source_lsp/request.ts";
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams } from "../ddu_source_lsp/params.ts";
@@ -13,7 +13,7 @@ type Params = {
 const METHOD = "textDocument/declaration" as const satisfies Method;
 
 export class Source extends BaseSource<Params> {
-  kind = "nvim_lsp";
+  kind = "file";
 
   gather(args: {
     denops: Denops;

@@ -1,6 +1,6 @@
 import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { ActionData } from "../@ddu-kinds/nvim_lsp.ts";
+import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { Location, LocationLink } from "npm:vscode-languageserver-types@3.17.4-next.0";
 import { isFeatureSupported, lspRequest, Method, Response } from "../ddu_source_lsp/request.ts";
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
@@ -14,7 +14,7 @@ type Params = {
 const METHOD = "textDocument/definition" as const satisfies Method;
 
 export class Source extends BaseSource<Params> {
-  kind = "nvim_lsp";
+  kind = "file";
 
   gather(args: {
     denops: Denops;
@@ -120,7 +120,8 @@ function locationToItem(
     display: `${path}:${lineNr}:${col}`,
     action: {
       path,
-      range: location.range,
+      lineNr: location.range.start.line + 1,
+      col: location.range.start.character + 1,
     },
     data: location,
   };
