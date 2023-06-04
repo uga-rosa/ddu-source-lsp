@@ -5,6 +5,7 @@ import { relative } from "https://deno.land/std@0.190.0/path/mod.ts";
 import { Diagnostic, Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { CLIENT_NAME, ClientName, isClientName } from "../ddu_source_lsp/client.ts";
+import { bufNrToFileUrl } from "../ddu_source_lsp/util.ts";
 
 type DduDiagnostic = Diagnostic & {
   bufNr?: number;
@@ -46,8 +47,8 @@ async function getDiagnostic(
         `ddu#source#lsp#coc#diagnostics`,
       ) as CocDiagnostic[] | null;
       if (cocDiagnostics) {
-        const path = await denops.eval(`fnamemodify(bufname(${bufNr}), ':p')`) as string;
-        return parseCocDiagnostics(cocDiagnostics, path);
+        const uri = bufNr ? await bufNrToFileUrl(denops, bufNr) : undefined;
+        return parseCocDiagnostics(cocDiagnostics, uri);
       }
       break;
     }
@@ -81,10 +82,10 @@ function parseNvimDiagnostics(
 
 function parseCocDiagnostics(
   cocDiagnostics: CocDiagnostic[],
-  path?: string,
+  uri?: string,
 ): DduDiagnostic[] {
-  if (path) {
-    cocDiagnostics = cocDiagnostics.filter((diag) => diag.file === path);
+  if (uri) {
+    cocDiagnostics = cocDiagnostics.filter((diag) => diag.location.uri === uri);
   }
   return cocDiagnostics.map((diag) => {
     return {
@@ -226,7 +227,7 @@ export class Source extends BaseSource<Params> {
 
   params(): Params {
     return {
-      clientName: "coc.nvim",
+      clientName: "nvim-lsp",
       buffer: null,
     };
   }
