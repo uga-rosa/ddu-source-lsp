@@ -1,6 +1,7 @@
 import { BaseFilter, DduItem } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
-import { KindName } from "../@ddu-sources/nvim_lsp.ts";
+import { KindName } from "../@ddu-sources/lsp_documentSymbol.ts";
 import { SymbolKind } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 
 const KindIcon = {
   File: "",
@@ -65,13 +66,7 @@ export class Filter extends BaseFilter<Record<never, never>> {
     items: DduItem[];
   }): Promise<DduItem[]> {
     return Promise.resolve(args.items.map((item) => {
-      if (
-        typeof item.data === "object" &&
-        item.data !== null &&
-        "kind" in item.data &&
-        typeof item.data.kind === "number" &&
-        item.data.kind >= 1 && item.data.kind <= 26
-      ) {
+      if (isLike({ data: { kind: 1 } }, item)) {
         const kind = item.data.kind as SymbolKind;
         const kindName = KindName[kind];
         const kindIcon = KindIcon[kindName];
@@ -79,7 +74,7 @@ export class Filter extends BaseFilter<Record<never, never>> {
         const { word, display = word, highlights = [] } = item;
         if (!display.startsWith(kindIcon)) {
           item.display = `${kindIcon} ${display}`;
-          highlights.forEach((hl) => hl.col += 4)
+          highlights.forEach((hl) => hl.col += 4);
           item.highlights = [
             ...highlights,
             {
