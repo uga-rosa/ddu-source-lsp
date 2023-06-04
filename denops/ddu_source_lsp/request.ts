@@ -1,4 +1,5 @@
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+
 import { ClientName, CLIENT_NAME } from "./client.ts";
 
 export const SUPPORTED_METHOD = {

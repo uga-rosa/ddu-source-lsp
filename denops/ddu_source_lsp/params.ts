@@ -1,5 +1,6 @@
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { Position, ReferenceContext, TextDocumentIdentifier } from "npm:vscode-languageserver-types@3.17.4-next.0";
+
 import { bufNrToFileUrl } from "./util.ts";
 
 export type TextDocumentPositionParams = {
