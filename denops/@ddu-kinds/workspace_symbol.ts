@@ -14,21 +14,17 @@ export type ActionData =
     | { bufNr: number; path?: string }
     | { bufNr?: number; path: string }
   )
-  & (
-    | { range: Range }
-    | { range?: undefined; resolve: () => Promise<Range | undefined> }
-  );
+  & {
+    range?: Range;
+    resolve?: () => Promise<Range | undefined>;
+  };
 
-async function getRange(action: ActionData) {
-  if (action.range) {
-    return action.range;
-  } else {
-    const range = await action.resolve();
-    if (range) {
-      action.range;
-    }
-    return range;
+async function getRange(action: ActionData): Promise<Range | undefined> {
+  if (!action.range && action.resolve) {
+    action.range = await action.resolve();
+    action.resolve = undefined;
   }
+  return action.range;
 }
 
 type OpenParams = {
