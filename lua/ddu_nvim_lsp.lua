@@ -53,7 +53,7 @@ local ProviderMap = {
 ---@param bufnr integer
 ---@param method string
 ---@return boolean?
-function M.supports_method(bufnr, method)
+function M.is_feature_supported(bufnr, method)
   local provider = ProviderMap[method]
   local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
   if #clients == 0 then
@@ -70,28 +70,7 @@ end
 ---@param bufNr integer
 ---@return table
 function M.get_diagnostic(bufNr)
-  local nvim_diagnostics = vim.diagnostic.get(bufNr)
-  local diagnostics = {}
-  for _, diag in ipairs(nvim_diagnostics) do
-    table.insert(diagnostics, {
-      range = {
-        start = {
-          line = diag.lnum,
-          character = diag.col,
-        },
-        ["end"] = {
-          line = diag.end_lnum,
-          character = diag.end_col,
-        },
-      },
-      severity = diag.severity,
-      code = diag.code,
-      source = diag.source,
-      message = diag.message,
-      bufNr = diag.bufnr,
-    })
-  end
-  return diagnostics
+  return vim.diagnostic.get(bufNr)
 end
 
 return M

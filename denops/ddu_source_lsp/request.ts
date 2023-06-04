@@ -34,7 +34,7 @@ export async function isFeatureSupported(
     case CLIENT_NAME["nvim-lsp"]: {
       return await denops.call(
         `luaeval`,
-        `require('ddu_nvim_lsp').supports_method(_A[1], _A[2])`,
+        `require('ddu_nvim_lsp').is_feature_supported(_A[1], _A[2])`,
         [bufNr, method],
       ) as boolean | null;
     }
