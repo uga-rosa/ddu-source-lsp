@@ -19,6 +19,10 @@ Supported methods are:
 
 See [doc](./doc/ddu-source-lsp.txt) for details.
 
-# ddu-source-diagnostic
+# ddu-source-lsp_diagnostic
 
 Ddu source for diagnostic.
+
+Supported lsp clients are:
+- nvim-lsp (neovim's diagnostic framework)
+- coc.nvim
