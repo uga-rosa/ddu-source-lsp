@@ -1,6 +1,6 @@
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 
-import { ClientName, CLIENT_NAME } from "./client.ts";
+import { CLIENT_NAME, ClientName } from "./client.ts";
 
 export const SUPPORTED_METHOD = {
   "textDocument/declaration": "textDocument/declaration",
@@ -39,6 +39,11 @@ export async function isFeatureSupported(
       ) as boolean | null;
     }
     case CLIENT_NAME["coc.nvim"]: {
+      // TODO
+      return true;
+    }
+    case CLIENT_NAME["vim-lsp"]: {
+      // TODO
       return true;
     }
     default: {
@@ -59,20 +64,24 @@ export async function lspRequest(
   params: unknown,
 ): Promise<Response | null> {
   switch (clientName) {
-    case "nvim-lsp": {
+    case CLIENT_NAME["nvim-lsp"]: {
       return await denops.call(
         `luaeval`,
         `require('ddu_nvim_lsp').request(_A[1], _A[2], _A[3])`,
         [bufNr, method, params],
       ) as Response | null;
     }
-    case "coc.nvim": {
+    case CLIENT_NAME["coc.nvim"]: {
       return await denops.call(
         `ddu#source#lsp#coc#request`,
         bufNr,
         method,
         params,
       ) as Response | null;
+    }
+    case CLIENT_NAME["vim-lsp"]: {
+      // TODO
+      return [];
     }
     default:
       clientName satisfies never;
