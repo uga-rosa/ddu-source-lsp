@@ -52,6 +52,10 @@ async function getDiagnostic(
       }
       break;
     }
+    case CLIENT_NAME["vim-lsp"]: {
+      // TODO
+      break;
+    }
     default: {
       clientName satisfies never;
     }

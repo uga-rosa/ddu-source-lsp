@@ -4,7 +4,8 @@ Ddu source for lsp.
 
 Supported lsp clients are:
 - nvim-lsp (neovim's built-in client)
-- coc.nvim
+- coc.nvim (https://github.com/neoclide/coc.nvim)
+- vim-lsp (https://github.com/prabirshrestha/vim-lsp)
 
 Supported methods are:
 - textDocument/declaration
@@ -25,6 +26,6 @@ Ddu source for diagnostic.
 
 Supported lsp clients are:
 - nvim-lsp (neovim's diagnostic framework)
-- coc.nvim
+- coc.nvim (https://github.com/neoclide/coc.nvim)
 
 See [doc](./doc/ddu-source-lsp_diagnostic.txt) for details.
