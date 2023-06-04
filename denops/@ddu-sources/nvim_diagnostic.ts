@@ -2,42 +2,104 @@ import { BaseSource, Context, Item } from "https://deno.land/x/ddu_vim@v2.9.2/ty
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { relative } from "https://deno.land/std@0.190.0/path/mod.ts";
-import { Diagnostic } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import { Diagnostic, Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
 import { ClientName, isClientName, VALID_CLIENT_NAME } from "./nvim_lsp.ts";
 
-type DiagnosticVim = Diagnostic & {
+type DduDiagnostic = Diagnostic & {
   bufNr?: number;
   path?: string;
+};
+
+type NvimDiagnostic = Pick<Diagnostic, "message" | "severity" | "source" | "code"> & {
+  lnum: number;
+  end_lnum: number;
+  col: number;
+  end_col: number;
+  bufnr: number;
+};
+
+type CocDiagnostic = Pick<Diagnostic, "message" | "source" | "code"> & {
+  file: string;
+  location: Location;
+  severity: keyof typeof Severity;
 };
 
 async function getDiagnostic(
   clientName: ClientName,
   denops: Denops,
   bufNr: number | null,
-): Promise<DiagnosticVim[]> {
+): Promise<DduDiagnostic[]> {
   switch (clientName) {
     case VALID_CLIENT_NAME["nvim-lsp"]: {
-      return await denops.call(
+      const diagnostics = await denops.call(
         `luaeval`,
         `require('ddu_nvim_lsp').get_diagnostic(${bufNr})`,
-      ) as DiagnosticVim[];
+      ) as NvimDiagnostic[] | null;
+      if (diagnostics) {
+        return parseNvimDiagnostics(diagnostics);
+      }
+      break;
     }
     case VALID_CLIENT_NAME["coc.nvim"]: {
-      return [];
+      const cocDiagnostics = await denops.call(
+        `ddu#source#lsp#coc#diagnostics`,
+      ) as CocDiagnostic[] | null;
+      if (cocDiagnostics) {
+        const path = await denops.eval(`fnamemodify(bufname(${bufNr}), ':p')`) as string;
+        return parseCocDiagnostics(cocDiagnostics, path);
+      }
+      break;
     }
     default: {
       clientName satisfies never;
-      return [];
     }
   }
+  return [];
 }
 
-/** @see :h vim.diagnostic.severity */
+function parseNvimDiagnostics(
+  nvimDiagnostics: NvimDiagnostic[],
+): DduDiagnostic[] {
+  return nvimDiagnostics.map((diag) => {
+    return {
+      ...diag,
+      range: {
+        start: {
+          line: diag.lnum,
+          character: diag.col,
+        },
+        end: {
+          line: diag.end_lnum,
+          character: diag.end_col,
+        },
+      },
+      bufNr: diag.bufnr,
+    };
+  });
+}
+
+function parseCocDiagnostics(
+  cocDiagnostics: CocDiagnostic[],
+  path?: string,
+): DduDiagnostic[] {
+  if (path) {
+    cocDiagnostics = cocDiagnostics.filter((diag) => diag.file === path);
+  }
+  return cocDiagnostics.map((diag) => {
+    return {
+      ...diag,
+      path: diag.file,
+      range: diag.location.range,
+      severity: Severity[diag.severity],
+    };
+  });
+}
+
 const Severity = {
-  ERROR: 1,
-  WARN: 2,
-  INFO: 3,
-  HINT: 4,
+  Error: 1,
+  Warning: 2,
+  Info: 3,
+  Hint: 4,
 } as const satisfies Record<string, number>;
 
 type Severity = typeof Severity[keyof typeof Severity];
@@ -45,10 +107,10 @@ type Severity = typeof Severity[keyof typeof Severity];
 type SomeRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 type ItemDiagnostic = SomeRequired<Item<SomeRequired<ActionData, "col" | "lineNr">>, "action"> & {
-  data: DiagnosticVim;
+  data: DduDiagnostic;
 };
 
-function diagnosticToItem(diagnostic: DiagnosticVim): ItemDiagnostic {
+function diagnosticToItem(diagnostic: DduDiagnostic): ItemDiagnostic {
   return {
     // Cut to first "\n"
     word: diagnostic.message.split("\n")[0],
@@ -144,7 +206,7 @@ export class Source extends BaseSource<Params> {
 
         const diagnostics = (await Promise.all(
           buffers.map(async (bufNr) => {
-            return await getDiagnostic(clientName, denops, bufNr);
+            return await getDiagnostic(clientName, denops, bufNr === 0 ? context.bufNr : bufNr);
           }),
         )).flat();
 
@@ -163,7 +225,7 @@ export class Source extends BaseSource<Params> {
 
   params(): Params {
     return {
-      clientName: "nvim-lsp",
+      clientName: "coc.nvim",
       buffer: null,
     };
   }

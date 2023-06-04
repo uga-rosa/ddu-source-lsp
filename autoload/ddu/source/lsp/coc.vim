@@ -23,3 +23,7 @@ function! s:get_active_client_ids(bufNr) abort
         \ ->filter({_, service -> service.languageIds->index(ft) != -1})
         \ ->map({_, service->service.id})
 endfunction
+
+function! ddu#source#lsp#coc#diagnostics() abort
+  return CocAction('diagnosticList')
+endfunction
