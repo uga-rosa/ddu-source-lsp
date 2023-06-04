@@ -6,7 +6,8 @@ import { Location, ReferenceContext } from "npm:vscode-languageserver-types@3.17
 import { isFeatureSupported, lspRequest, Method, Response } from "../ddu_source_lsp/request.ts";
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
-import { isDenoUriWithFragment, locationToItem } from "../ddu_source_lsp/util.ts";
+import { locationToItem } from "../ddu_source_lsp/util.ts";
+import { isDenoUriWithFragment } from "../ddu_source_lsp/deno.ts";
 
 type ReferenceParams = TextDocumentPositionParams & {
   context: ReferenceContext;
