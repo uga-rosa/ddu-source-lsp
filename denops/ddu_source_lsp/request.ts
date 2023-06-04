@@ -1,4 +1,7 @@
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { register, unregister } from "https://deno.land/x/denops_std@v5.0.0/lambda/mod.ts";
+import { deferred } from "https://deno.land/std@0.190.0/async/deferred.ts";
+import { ensureObject } from "https://deno.land/x/unknownutil@v2.1.1/ensure.ts";
 
 import { CLIENT_NAME, ClientName } from "./client.ts";
 
@@ -43,8 +46,11 @@ export async function isFeatureSupported(
       return true;
     }
     case CLIENT_NAME["vim-lsp"]: {
-      // TODO
-      return true;
+      return await denops.call(
+        `ddu#source#lsp#vimlsp#is_feature_supported`,
+        bufNr,
+        method,
+      ) as boolean | null;
     }
     default: {
       clientName satisfies never;
@@ -80,8 +86,29 @@ export async function lspRequest(
       ) as Response | null;
     }
     case CLIENT_NAME["vim-lsp"]: {
-      // TODO
-      return [];
+      const servers = await denops.call(
+        `ddu#source#lsp#vimlsp#servers`,
+        bufNr,
+        method,
+      ) as string[];
+      const results = await Promise.all(servers.map(async (server) => {
+        const data = deferred<unknown>();
+        const id = register(denops, (response: unknown) => data.resolve(response));
+        try {
+          await denops.eval(
+            `lsp#send_request(l:server, extend(l:request,` +
+              `{'on_notification': {data -> denops#notify(l:name, l:id, [data])}}))`,
+            { server, request: { method, params }, name: denops.name, id },
+          );
+          const resolvedData = await data;
+          const { response } = ensureObject(resolvedData);
+          const { result } = ensureObject(response);
+          return result;
+        } finally {
+          unregister(denops, id);
+        }
+      }));
+      return results.filter((res) => res != null);
     }
     default:
       clientName satisfies never;
