@@ -17,6 +17,7 @@ export const SUPPORTED_METHOD = {
   "textDocument/prepareCallHierarchy": "textDocument/prepareCallHierarchy",
   "callHierarchy/incomingCalls": "callHierarchy/incomingCalls",
   "callHierarchy/outgoingCalls": "callHierarchy/outgoingCalls",
+  "deno/virtualTextDocument": "deno/virtualTextDocument"
 } as const satisfies Record<string, string>;
 
 export type Method = typeof SUPPORTED_METHOD[keyof typeof SUPPORTED_METHOD];

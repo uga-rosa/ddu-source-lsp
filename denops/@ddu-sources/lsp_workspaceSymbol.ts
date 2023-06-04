@@ -7,6 +7,7 @@ import { isFeatureSupported, lspRequest, Method, Results } from "../ddu_source_l
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
 import { KindName } from "./lsp_documentSymbol.ts";
+import { createVirtualBuffer, isDenoUriWithFragment } from "../ddu_source_lsp/deno.ts";
 
 type Params = {
   clientName: ClientName;
@@ -69,6 +70,10 @@ export class Source extends BaseSource<Params> {
           };
 
           const items = workspaceSymbolsToItems(response, resolve);
+          await Promise.all(items.map(async (item) => {
+            const symbol = item.data as SymbolInformation | WorkspaceSymbol;
+            await createVirtualBuffer(denops, ctx.bufNr, clientName, symbol.location.uri);
+          }));
           controller.enqueue(items);
         }
 
@@ -96,7 +101,10 @@ function workspaceSymbolsToItems(
      */
     const symbols = result as SymbolInformation[] | WorkspaceSymbol[];
 
-    return symbols.map((symbol) => {
+    return symbols.flatMap((symbol) => {
+      if (isDenoUriWithFragment(symbol.location.uri)) {
+        return [];
+      }
       const kindName = KindName[symbol.kind];
       const kind = `[${kindName}]`.padEnd(15, " ");
       return {

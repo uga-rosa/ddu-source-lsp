@@ -20,8 +20,9 @@ endfunction
 
 function! s:is_feature_supported(server, method) abort
   let server_capabilities = lsp#get_server_capabilities(a:server)
-  let provider = s:provider_map[a:method]
-  return !!get(server_capabilities, provider, 0)
+  let provider = get(s:provider_map, a:method, '')
+  return !!get(server_capabilities, provider,
+        \ a:method =~# 'deno/' && a:server ==# 'deno' ? 1 : 0)
 endfunction
 
 let s:provider_map = {

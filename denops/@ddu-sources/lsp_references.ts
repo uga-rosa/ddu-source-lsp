@@ -7,7 +7,7 @@ import { isFeatureSupported, lspRequest, Method, Results } from "../ddu_source_l
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
 import { locationToItem } from "../ddu_source_lsp/util.ts";
-import { isDenoUriWithFragment } from "../ddu_source_lsp/deno.ts";
+import { createVirtualBuffer, isDenoUriWithFragment } from "../ddu_source_lsp/deno.ts";
 
 type ReferenceParams = TextDocumentPositionParams & {
   context: ReferenceContext;
@@ -58,6 +58,10 @@ export class Source extends BaseSource<Params> {
         const response = await lspRequest(denops, ctx.bufNr, clientName, METHOD, params);
         if (response) {
           const items = referencesToItems(response);
+          await Promise.all(items.map(async (item) => {
+            const location = item.data as Location;
+            await createVirtualBuffer(denops, ctx.bufNr, clientName, location.uri);
+          }));
           controller.enqueue(items);
         }
 
@@ -84,6 +88,10 @@ function referencesToItems(
      */
     const locations = result as Location[];
     return locations;
-  }).filter((location) => !isDenoUriWithFragment(location))
-    .map(locationToItem);
+  }).flatMap((location) => {
+    if (isDenoUriWithFragment(location.uri)) {
+      return [];
+    }
+    return locationToItem(location);
+  });
 }
