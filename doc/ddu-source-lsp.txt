@@ -96,7 +96,7 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 						*ddu-source-lsp_references*
 - lsp_references
 	Lists project-wide references for the symbol denoted by the cursor
-	position.
+	position. See also |ddu-source-lsp-params-includeDeclaration|.
 
 					*ddu-source-lsp_documentSymbol*
 - lsp_documentSymbol
@@ -164,6 +164,13 @@ method	(string)
 	Default:
 		"textDocument/definition" (lsp_definition)
 		"callHierarchy/incomingCalls" (lsp_hierarchy)
+
+				*ddu-source-lsp-params-includeDeclaration*
+includeDeclaration (boolean)
+	Available in |ddu-source-lsp_references|.
+	Whether to include the declaration of the current symbol.
+
+	Default: true
 
 					*ddu-source-lsp-params-query*
 query	(string)
