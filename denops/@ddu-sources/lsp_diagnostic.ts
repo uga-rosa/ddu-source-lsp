@@ -5,7 +5,7 @@ import { fromFileUrl, relative } from "https://deno.land/std@0.190.0/path/mod.ts
 import { Diagnostic, Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { CLIENT_NAME, ClientName, isClientName } from "../ddu_source_lsp/client.ts";
-import { bufNrToFileUrl } from "../ddu_source_lsp/util.ts";
+import { bufNrToFileUrl, SomeRequired } from "../ddu_source_lsp/util.ts";
 
 type DduDiagnostic = Diagnostic & {
   bufNr?: number;
@@ -134,8 +134,6 @@ const Severity = {
 } as const satisfies Record<string, number>;
 
 type Severity = typeof Severity[keyof typeof Severity];
-
-type SomeRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
 type ItemDiagnostic = SomeRequired<Item<SomeRequired<ActionData, "col" | "lineNr">>, "action"> & {
   data: DduDiagnostic;
