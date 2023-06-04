@@ -10,9 +10,14 @@ import { isDenoUriWithFragment, locationToItem } from "../ddu_source_lsp/util.ts
 
 type Params = {
   clientName: ClientName;
+  method: Extract<
+    Method,
+    | "textDocument/definition"
+    | "textDocument/declaration"
+    | "textDocument/typeDefinition"
+    | "textDocument/implementation"
+  >;
 };
-
-const METHOD = "textDocument/definition" as const satisfies Method;
 
 export class Source extends BaseSource<Params> {
   kind = "file";
@@ -25,7 +30,7 @@ export class Source extends BaseSource<Params> {
     parent?: DduItem;
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
-    const { clientName } = sourceParams;
+    const { clientName, method } = sourceParams;
 
     return new ReadableStream({
       async start(controller) {
@@ -35,10 +40,10 @@ export class Source extends BaseSource<Params> {
           return;
         }
 
-        const isSupported = await isFeatureSupported(denops, ctx.bufNr, clientName, METHOD);
+        const isSupported = await isFeatureSupported(denops, ctx.bufNr, clientName, method);
         if (!isSupported) {
           if (isSupported === false) {
-            console.log(`${METHOD} is not supported by any of the servers`);
+            console.log(`${method} is not supported by any of the servers`);
           } else {
             console.log("No server attached");
           }
@@ -48,7 +53,7 @@ export class Source extends BaseSource<Params> {
 
         const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
 
-        const response = await lspRequest(denops, ctx.bufNr, clientName, METHOD, params);
+        const response = await lspRequest(denops, ctx.bufNr, clientName, method, params);
         if (response) {
           const items = definitionsToItems(response);
           controller.enqueue(items);
@@ -62,6 +67,7 @@ export class Source extends BaseSource<Params> {
   params(): Params {
     return {
       clientName: "nvim-lsp",
+      method: "textDocument/definition",
     };
   }
 }
