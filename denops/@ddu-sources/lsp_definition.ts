@@ -3,10 +3,11 @@ import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { Location, LocationLink } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { isFeatureSupported, lspRequest, Method, Response } from "../ddu_source_lsp/request.ts";
+import { isFeatureSupported, lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams } from "../ddu_source_lsp/params.ts";
-import { isDenoUriWithFragment, locationToItem } from "../ddu_source_lsp/util.ts";
+import { locationToItem } from "../ddu_source_lsp/util.ts";
+import { createVirtualBuffer, isDenoUriWithFragment } from "../ddu_source_lsp/deno.ts";
 
 type Params = {
   clientName: ClientName;
@@ -56,6 +57,10 @@ export class Source extends BaseSource<Params> {
         const response = await lspRequest(denops, ctx.bufNr, clientName, method, params);
         if (response) {
           const items = definitionsToItems(response);
+          await Promise.all(items.map(async (item) => {
+            const location = item.data as Location;
+            await createVirtualBuffer(denops, ctx.bufNr, clientName, location.uri);
+          }));
           controller.enqueue(items);
         }
 
@@ -73,7 +78,7 @@ export class Source extends BaseSource<Params> {
 }
 
 export function definitionsToItems(
-  response: Response,
+  response: Results,
 ): Item<ActionData>[] {
   return response.flatMap((result) => {
     /**
@@ -90,8 +95,12 @@ export function definitionsToItems(
     } else {
       return locations.map(toLocation);
     }
-  }).filter((location) => !isDenoUriWithFragment(location))
-    .map(locationToItem);
+  }).flatMap((location) => {
+    if (isDenoUriWithFragment(location.uri)) {
+      return [];
+    }
+    return locationToItem(location);
+  });
 }
 
 export function toLocation(loc: Location | LocationLink): Location {

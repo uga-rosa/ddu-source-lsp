@@ -8,10 +8,11 @@ import {
 } from "npm:vscode-languageserver-types@3.17.4-next.0";
 import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 
-import { isFeatureSupported, lspRequest, Method, Response } from "../ddu_source_lsp/request.ts";
+import { isFeatureSupported, lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
+import { createVirtualBuffer, isDenoUriWithFragment } from "../ddu_source_lsp/deno.ts";
 
 type ItemHierarchy = Omit<Item<ActionData>, "data"> & {
   data: CallHierarchyItem & {
@@ -77,6 +78,10 @@ export class Source extends BaseSource<Params> {
               ...hierarchyParent,
               children,
             };
+            await Promise.all(children.map(async (child) => {
+              const callHierarchyItem = child.data;
+              await createVirtualBuffer(denops, ctx.bufNr, clientName, callHierarchyItem.uri);
+            }));
           } else {
             parent.isTree = false;
           }
@@ -125,7 +130,8 @@ async function prepareCallHierarchy(
        * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_prepareCallHierarchy
        */
       const callHierarchyItems = result as CallHierarchyItem[];
-      return callHierarchyItems;
+      return callHierarchyItems
+        .filter((item) => !isDenoUriWithFragment(item.uri));
     }).map((callHierarchyItem) => {
       return {
         word: callHierarchyItem.name,
@@ -142,7 +148,7 @@ async function prepareCallHierarchy(
 }
 
 function callHierarchiesToItems(
-  response: Response,
+  response: Results,
 ): ItemHierarchy[] {
   return response.flatMap((result) => {
     /**
