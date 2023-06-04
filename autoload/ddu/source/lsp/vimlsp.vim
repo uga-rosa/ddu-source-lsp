@@ -37,6 +37,27 @@ let s:provider_map = {
       \ "callHierarchy/outgoingCalls": "callHierarchyProvider",
       \}
 
-function! ddu#source#lsp#vimlsp#diagnostics() abort
-  return vimlspAction('diagnosticList')
+function! ddu#source#lsp#vimlsp#diagnostics(uri) abort
+  if !empty(a:uri)
+    " callers should always treat the return value as immutable
+    " @return {
+    "   'servername': response
+    " }
+    return lsp#internal#diagnostics#state#_get_all_diagnostics_grouped_by_server_for_uri(a:uri)
+          \ ->values()
+          \ ->map({-> v:val.params})
+  else
+    " callers should always treat the return value as immutable.
+    " callers should treat uri as normalized via lsp#utils#normalize_uri
+    " @return {
+    "   'normalized_uri': {
+    "       'servername': response
+    "   }
+    " }
+    return lsp#internal#diagnostics#state#_get_all_diagnostics_grouped_by_uri_and_server()
+          \ ->values()
+          \ ->map({-> v:val->values()})
+          \ ->flatten(1)
+          \ ->map({-> v:val.params})
+  endif
 endfunction

@@ -1,7 +1,7 @@
 import { BaseSource, Context, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
-import { relative } from "https://deno.land/std@0.190.0/path/mod.ts";
+import { fromFileUrl, relative } from "https://deno.land/std@0.190.0/path/mod.ts";
 import { Diagnostic, Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { CLIENT_NAME, ClientName, isClientName } from "../ddu_source_lsp/client.ts";
@@ -24,6 +24,11 @@ type CocDiagnostic = Pick<Diagnostic, "message" | "source" | "code"> & {
   file: string;
   location: Location;
   severity: keyof typeof Severity;
+};
+
+type VimDiagnostic = {
+  uri: string;
+  diagnostics: Diagnostic[];
 };
 
 async function getDiagnostic(
@@ -53,7 +58,13 @@ async function getDiagnostic(
       break;
     }
     case CLIENT_NAME["vim-lsp"]: {
-      // TODO
+      const diagnostics = await denops.call(
+        `ddu#source#lsp#vimlsp#diagnostics`,
+        bufNr ? await bufNrToFileUrl(denops, bufNr) : null,
+      ) as VimDiagnostic[] | null;
+      if (diagnostics) {
+        return parseVimDiagnostics(diagnostics);
+      }
       break;
     }
     default: {
@@ -98,6 +109,20 @@ function parseCocDiagnostics(
       range: diag.location.range,
       severity: Severity[diag.severity],
     };
+  });
+}
+
+function parseVimDiagnostics(
+  diagnostics: VimDiagnostic[],
+): DduDiagnostic[] {
+  return diagnostics.flatMap((vimDiagnostic) => {
+    const path = fromFileUrl(vimDiagnostic.uri);
+    return vimDiagnostic.diagnostics.map((diag) => {
+      return {
+        ...diag,
+        path,
+      };
+    });
   });
 }
 
