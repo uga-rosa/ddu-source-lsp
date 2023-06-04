@@ -1,6 +1,10 @@
-# ddu-source-nvim_lsp
+# ddu-source-lsp
 
-Ddu source for neovim's built-in lsp client.
+Ddu source for lsp.
+
+Supported lsp clients are:
+- nvim-lsp (neovim's built-in client)
+- coc.nvim
 
 Supported methods are:
 - textDocument/declaration
@@ -13,6 +17,6 @@ Supported methods are:
 - callHierarchy/incomingCalls
 - callHierarchy/outgoingCalls
 
-# ddu-source-nvim_diagnostic
+See [doc](./doc/ddu-source-nvim_lsp.txt) for details.
 
 Ddu source for neovim's diagnostic framework.

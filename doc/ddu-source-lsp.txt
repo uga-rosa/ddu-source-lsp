@@ -1,0 +1,192 @@
+*ddu-source-lsp.txt*			ddu source for any lsp client
+
+Author  : uga-rosa
+License : MIT license
+
+CONTENTS					*ddu-source-lsp-contents*
+
+Introduction				|ddu-source-lsp-introduction|
+Install					|ddu-source-lsp-install|
+Examples				|ddu-source-lsp-examples|
+Params					|ddu-source-lsp-params|
+Supported methods			|ddu-source-lsp-supported-methods|
+FAQ					|ddu-source-lsp-faq|
+
+
+==============================================================================
+INTRODUCTION					*ddu-source-lsp-introduction*
+
+Ddu source for lsp.
+
+Supported lsp clients are:
+	- nvim-lsp (neovim's built-in client)
+	- coc.nvim
+
+
+==============================================================================
+INSTALL						*ddu-source-lsp-install*
+
+Please install "ddu.vim" and "denops.vim".
+
+https://github.com/Shougo/ddu.vim
+https://github.com/vim-denops/denops.vim
+
+
+==============================================================================
+EXAMPLES					*ddu-source-lsp-examples*
+>
+	call ddu#start(#{
+	    \ sync: v:true,
+	    \ sources: [#{
+	    \   name: 'lsp_definition',
+	    \ }],
+	    \ uiParams: #{
+	    \   ff: #{
+	    \     immediateAction: 'open',
+	    \   },
+	    \ }
+	    \})
+
+	call ddu#start(#{
+	    \ sources: [#{
+	    \   name: 'lsp_workspaceSymbol',
+	    \ }],
+	    \ sourceOptions: #{
+	    \   lsp: #{
+	    \     volatile: v:true,
+	    \   },
+	    \ },
+	    \ uiParams: #{
+	    \   ff: #{
+	    \     ignoreEmpty: v:false
+	    \   },
+	    \ }
+	    \})
+
+	call ddu#start(#{
+	    \ sources: [#{
+	    \   name: 'lsp_hierarchy',
+	    \   params: #{
+	    \     method: 'callHierarchy/outgoingCalls',
+	    \   }
+	    \ }],
+	    \ uiParams: #{
+	    \   ff: #{
+	    \     displayTree: v:true,
+	    \     startFilter: v:false,
+	    \   },
+	    \ }
+	    \})
+<
+
+==============================================================================
+AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
+
+						*ddu-source-lsp_definition*
+- lsp_definition
+	Lists the definition locations of a symbol at the cursor position. The
+	following methods are integrated. Which one to use can be specified in
+	params (|ddu-source-lsp-param-method|).
+
+	- textDocument/definition
+	- textDocument/typeDefinition
+	- textDocument/declaration
+	- textDocument/implementation
+
+						*ddu-source-lsp_references*
+- lsp_references
+	Lists project-wide references for the symbol denoted by the cursor
+	position.
+
+					*ddu-source-lsp_documentSymbol*
+- lsp_documentSymbol
+	Lists the document symbols in the current buffer.
+
+					*ddu-source-lsp_workspaceSymbol*
+- lsp_workspaceSymbol
+	Lists the document symbols in the current workspace. The query option
+	(|ddu-source-lsp-params-query|) is used to filter the symbols.
+	The |ddu-source-option-volatile| can also be used, in which case the
+	query option is ignored.
+
+						*ddu-source-lsp_hierarchy*
+- lsp_hierarchy
+	Lists the call hierarchy in a tree structure. Use
+	|ddu-ui-ff-action-expandItem| to expand the tree. The following
+	methods are integrated. Which one to use can be specified in params
+	(|ddu-source-lsp-param-method|).
+
+	- callHierarchy/incomingCalls
+	- callHierarchy/outgoingCalls
+
+	For a function calling structure as depicted below,
+>
+	function foo() {
+	  bar();
+	}
+	function bar() {
+	  baz();
+	}
+	function baz() {}
+<
+	the respective call hierarchy trees would look like this:
+
+	- incomingCalls
+		- baz
+		  - bar
+		    - foo
+
+	- outgoingCalls
+		- foo
+		  - bar
+		    - baz
+
+
+==============================================================================
+PARAMS						*ddu-source-lsp-params*
+
+					*ddu-source-lsp-param-clientName*
+clientName	(string)
+	Available in all sources.
+	This parameter specifies the lsp client to be used. The available
+	options are:
+
+	- nvim-lsp: Neovim's built-in lsp client.
+	- coc.nvim: https://github.com/neoclide/coc.nvim
+
+	Default: "nvim-lsp"
+
+					*ddu-source-lsp-param-method*
+method	(string)
+	Available in |ddu-source-lsp_definition| and
+	|ddu-source-lsp_hierarchy|. The method to be invoked.
+
+	Default:
+		"textDocument/definition" (lsp_definition)
+		"callHierarchy/incomingCalls" (lsp_hierarchy)
+
+					*ddu-source-lsp-params-query*
+query	(string)
+	Available in |ddu-source-lsp_workspaceSymbol|.
+	A query string is used to filter symbols. Clients may send an empty
+	string to request all symbols. To dynamically filter, use
+	|ddu-source-option-volatile|.
+
+	Note: While the Language Server Protocol specification allows for an
+	empty query, certain language server implementations may not return
+	any results in such instances.
+
+	Default: ""
+
+
+==============================================================================
+FREQUENTLY ASKED QUESTIONS (FAQ)		*ddu-source-lsp-faq*
+
+Q: I want to skip selection when there is only one candidate, close the UI and
+jump automatically.
+
+A: Use |ddu-ui-ff-param-immediateAction|.
+
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:noet:fen:noet:
