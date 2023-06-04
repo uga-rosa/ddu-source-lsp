@@ -3,7 +3,7 @@ import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { Location, Range, SymbolInformation, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { isFeatureSupported, lspRequest, Method, Response } from "../ddu_source_lsp/request.ts";
+import { isFeatureSupported, lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
 import { KindName } from "./lsp_documentSymbol.ts";
@@ -57,12 +57,12 @@ export class Source extends BaseSource<Params> {
         if (response) {
           const resolve = (symbol: WorkspaceSymbol) => {
             return (async () => {
-              const resolveResponse = await lspRequest(denops, ctx.bufNr, clientName, RESOLVE_METHOD, symbol);
-              if (resolveResponse) {
+              const resolvedResults = await lspRequest(denops, ctx.bufNr, clientName, RESOLVE_METHOD, symbol);
+              if (resolvedResults) {
                 /**
                  * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
                  */
-                const workspaceSymbol = resolveResponse[0] as WorkspaceSymbol;
+                const workspaceSymbol = resolvedResults[0] as WorkspaceSymbol;
                 return (workspaceSymbol.location as Location).range;
               }
             });
@@ -86,7 +86,7 @@ export class Source extends BaseSource<Params> {
 }
 
 function workspaceSymbolsToItems(
-  response: Response,
+  response: Results,
   resolve: (symbol: WorkspaceSymbol) => () => Promise<Range | undefined>,
 ): Item<ActionData>[] {
   return response.flatMap((result) => {

@@ -60,7 +60,7 @@ export async function isFeatureSupported(
 }
 
 /** Array of results per client */
-export type Response = unknown[];
+export type Results = unknown[];
 
 export async function lspRequest(
   denops: Denops,
@@ -68,14 +68,14 @@ export async function lspRequest(
   clientName: ClientName,
   method: Method,
   params: unknown,
-): Promise<Response | null> {
+): Promise<Results | null> {
   switch (clientName) {
     case CLIENT_NAME["nvim-lsp"]: {
       return await denops.call(
         `luaeval`,
         `require('ddu_nvim_lsp').request(_A[1], _A[2], _A[3])`,
         [bufNr, method, params],
-      ) as Response | null;
+      ) as Results | null;
     }
     case CLIENT_NAME["coc.nvim"]: {
       return await denops.call(
@@ -83,7 +83,7 @@ export async function lspRequest(
         bufNr,
         method,
         params,
-      ) as Response | null;
+      ) as Results | null;
     }
     case CLIENT_NAME["vim-lsp"]: {
       const servers = await denops.call(
