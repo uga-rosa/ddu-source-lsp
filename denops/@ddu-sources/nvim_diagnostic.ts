@@ -2,6 +2,22 @@ import { BaseSource, Context, Item } from "https://deno.land/x/ddu_vim@v2.9.2/ty
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { relative } from "https://deno.land/std@0.190.0/path/mod.ts";
+import { Diagnostic } from "npm:vscode-languageserver-types@3.17.4-next.0";
+
+type DiagnosticVim = Diagnostic & {
+  bufNr?: number;
+  path?: string;
+};
+
+async function getDiagnostic(
+  denops: Denops,
+  bufNr: number | null,
+): Promise<DiagnosticVim[]> {
+  return await denops.call(
+    `luaeval`,
+    `require('ddu_nvim_lsp').get_diagnostic(${bufNr})`,
+  ) as DiagnosticVim[];
+}
 
 /** @see :h vim.diagnostic.severity */
 const Severity = {
@@ -13,45 +29,21 @@ const Severity = {
 
 type Severity = typeof Severity[keyof typeof Severity];
 
-/**
- * @see :h diagnostic-structure
- * 0-based rows and columns
- */
-export type Diagnostic = {
-  /** Buffer number */
-  bufnr?: number;
-  /** The starting line of the diagnostic */
-  lnum: number;
-  /** The final line of the diagnostic */
-  end_lnum?: number;
-  /** The starting column of the diagnostic */
-  col: number;
-  /** The final column of the diagnostic */
-  end_col?: number;
-  /** The severity of the diagnostic |vim.diagnostic.severity| */
-  severity?: Severity;
-  /** The diagnostic text */
-  message: string;
-  /** The source of the diagnostic */
-  source?: string;
-  /** The diagnostic code */
-  code?: number | string;
-  /** Arbitrary data plugins or users can add */
-  user_data?: unknown;
+type SomeRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+
+type ItemDiagnostic = SomeRequired<Item<SomeRequired<ActionData, "col" | "lineNr">>, "action"> & {
+  data: DiagnosticVim;
 };
 
-interface ItemLsp extends Item<ActionData> {
-  data: Diagnostic;
-}
-
-function diagnosticToItem(diagnostic: Diagnostic): ItemLsp {
+function diagnosticToItem(diagnostic: DiagnosticVim): ItemDiagnostic {
   return {
     // Cut to first "\n"
     word: diagnostic.message.split("\n")[0],
     action: {
-      bufNr: diagnostic.bufnr,
-      lineNr: diagnostic.lnum + 1,
-      col: diagnostic.col + 1,
+      path: diagnostic.path,
+      bufNr: diagnostic.bufNr,
+      lineNr: diagnostic.range.start.line + 1,
+      col: diagnostic.range.start.character + 1,
     },
     data: diagnostic,
   };
@@ -61,21 +53,21 @@ function diagnosticToItem(diagnostic: Diagnostic): ItemLsp {
  * Copyright (c) 2020-2021 nvim-telescope
  * https://github.com/nvim-telescope/telescope.nvim/blob/6d3fbffe426794296a77bb0b37b6ae0f4f14f807/lua/telescope/builtin/__diagnostics.lua#L80-L98
  */
-function sortItemLsp(items: ItemLsp[], curBufNr: number) {
+function sortItemDiagnostic(items: ItemDiagnostic[], curBufNr: number) {
   items.sort((a, b) => {
-    if (a.data.bufnr === b.data.bufnr) {
+    if (a.action.bufNr === b.action.bufNr) {
       if (a.data.severity === b.data.severity) {
-        return a.data.lnum - b.data.lnum;
+        return a.action.lineNr - b.action.lineNr;
       } else {
         return (a.data.severity ?? 1) - (b.data.severity ?? 1);
       }
     } else {
-      if (a.data.bufnr === undefined || a.data.bufnr === curBufNr) {
+      if (a.action.bufNr === undefined || a.action.bufNr === curBufNr) {
         return -1;
-      } else if (b.data.bufnr === undefined || b.data.bufnr === curBufNr) {
+      } else if (b.action.bufNr === undefined || b.action.bufNr === curBufNr) {
         return 1;
       } else {
-        return a.data.bufnr - b.data.bufnr;
+        return a.action.bufNr - b.action.bufNr;
       }
     }
   });
@@ -88,12 +80,12 @@ const SeverityIconHlMap = {
   4: ["H", ""],
 } as const satisfies Record<Severity, Readonly<[string, string]>>;
 
-async function ugaStyle(
+async function addIconAndHighlight(
   denops: Denops,
-  item: Item<ActionData>,
-  diagnostic: Diagnostic,
+  item: ItemDiagnostic,
 ) {
-  const { severity = 1, bufnr = 0, col, lnum } = diagnostic;
+  const { severity = 1 } = item.data;
+  const { bufNr, path, col, lineNr } = item.action;
 
   const [icon, hl_group] = SeverityIconHlMap[severity];
   if (hl_group) {
@@ -105,28 +97,15 @@ async function ugaStyle(
     }];
   }
 
-  const fullPath = await fn.bufname(denops, bufnr);
+  const fullPath = path ?? await fn.bufname(denops, bufNr);
   const relativePath = relative(Deno.cwd(), fullPath);
 
-  item.word = `${relativePath}:${lnum + 1}:${col + 1}: ${item.word}`;
+  item.word = `${relativePath}:${lineNr + 1}:${col + 1}: ${item.word}`;
   item.display = `${icon} ${item.word}`;
 }
 
-/**
- * @see :h vim.diagnostic.get()
- * The second argument {opts}.
- */
-type Options = {
-  /** Limit diagnostics to the given namespace. */
-  namespace?: number;
-  /** Limit diagnostics to the given line number. */
-  lnum?: number;
-  severity?: Severity;
-};
-
 type Params = {
   buffer: number | number[] | null;
-  options: Options;
 };
 
 export class Source extends BaseSource<Params> {
@@ -136,23 +115,25 @@ export class Source extends BaseSource<Params> {
     denops: Denops;
     context: Context;
     sourceParams: Params;
-  }): ReadableStream<ItemLsp[]> {
-    const { denops, sourceParams: { buffer, options }, context } = args;
-    const { getDiagnostic } = this;
+  }): ReadableStream<ItemDiagnostic[]> {
+    const { denops, sourceParams: { buffer }, context } = args;
+
     return new ReadableStream({
       async start(controller) {
         const buffers = Array.isArray(buffer) ? buffer : [buffer];
+
         const diagnostics = (await Promise.all(
-          buffers.map(async (buf) => {
-            return await getDiagnostic(denops, buf, options);
+          buffers.map(async (bufNr) => {
+            return await getDiagnostic(denops, bufNr);
           }),
         )).flat();
+
         const items = await Promise.all(diagnostics.map(async (diagnostic) => {
           const item = diagnosticToItem(diagnostic);
-          await ugaStyle(denops, item, diagnostic);
+          await addIconAndHighlight(denops, item);
           return item;
         }));
-        sortItemLsp(items, context.bufNr);
+        sortItemDiagnostic(items, context.bufNr);
 
         controller.enqueue(items);
         controller.close();
@@ -160,22 +141,9 @@ export class Source extends BaseSource<Params> {
     });
   }
 
-  async getDiagnostic(
-    denops: Denops,
-    buffer: number | null,
-    options?: Options,
-  ): Promise<Diagnostic[]> {
-    return await denops.call(
-      "luaeval",
-      "vim.diagnostic.get(_A[1], _A[2])",
-      [buffer, options],
-    ) as Diagnostic[];
-  }
-
   params(): Params {
     return {
       buffer: null,
-      options: {},
     };
   }
 }
