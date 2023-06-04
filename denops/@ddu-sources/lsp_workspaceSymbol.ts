@@ -1,13 +1,17 @@
 import { BaseSource, Context, DduItem, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
-import { Location, Range, SymbolInformation, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import { ActionData } from "../@ddu-kinds/workspace_symbol.ts";
+import { Location, SymbolInformation, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { isFeatureSupported, lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
-import { uriToPath } from "../ddu_source_lsp/util.ts";
+import { SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
 import { KindName } from "./lsp_documentSymbol.ts";
 import { createVirtualBuffer, isDenoUriWithFragment } from "../ddu_source_lsp/deno.ts";
+
+type ItemAction = SomeRequired<Item<ActionData>, "action"> & {
+  data: SymbolInformation | WorkspaceSymbol;
+};
 
 type Params = {
   clientName: ClientName;
@@ -56,8 +60,14 @@ export class Source extends BaseSource<Params> {
 
         const response = await lspRequest(denops, ctx.bufNr, clientName, METHOD, params);
         if (response) {
-          const resolve = (symbol: WorkspaceSymbol) => {
-            return (async () => {
+          const items = workspaceSymbolsToItems(response);
+
+          items.forEach((item) => {
+            if (!isWorkspaceSymbol(item.data)) {
+              return;
+            }
+            const symbol = item.data;
+            item.action.resolve = async () => {
               const resolvedResults = await lspRequest(denops, ctx.bufNr, clientName, RESOLVE_METHOD, symbol);
               if (resolvedResults) {
                 /**
@@ -66,12 +76,11 @@ export class Source extends BaseSource<Params> {
                 const workspaceSymbol = resolvedResults[0] as WorkspaceSymbol;
                 return (workspaceSymbol.location as Location).range;
               }
-            });
-          };
+            };
+          });
 
-          const items = workspaceSymbolsToItems(response, resolve);
           await Promise.all(items.map(async (item) => {
-            const symbol = item.data as SymbolInformation | WorkspaceSymbol;
+            const symbol = item.data;
             await createVirtualBuffer(denops, ctx.bufNr, clientName, symbol.location.uri);
           }));
           controller.enqueue(items);
@@ -92,8 +101,7 @@ export class Source extends BaseSource<Params> {
 
 function workspaceSymbolsToItems(
   response: Results,
-  resolve: (symbol: WorkspaceSymbol) => () => Promise<Range | undefined>,
-): Item<ActionData>[] {
+): ItemAction[] {
   return response.flatMap((result) => {
     /**
      * Reference:
@@ -112,10 +120,15 @@ function workspaceSymbolsToItems(
         action: {
           path: uriToPath(symbol.location.uri),
           range: "range" in symbol.location ? symbol.location.range : undefined,
-          resolve: "range" in symbol.location ? undefined : resolve(symbol),
         },
         data: symbol,
       };
     });
   });
+}
+
+function isWorkspaceSymbol(
+  symbol: SymbolInformation | WorkspaceSymbol,
+): symbol is WorkspaceSymbol {
+  return !("range" in symbol);
 }
