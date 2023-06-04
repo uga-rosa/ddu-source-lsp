@@ -17,7 +17,7 @@ Supported methods are:
 - callHierarchy/incomingCalls
 - callHierarchy/outgoingCalls
 
-See [doc](./doc/ddu-source-nvim_lsp.txt) for details.
+See [doc](./doc/ddu-source-lsp.txt) for details.
 
 # ddu-source-diagnostic
 
