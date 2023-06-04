@@ -92,6 +92,10 @@ export async function lspRequest(
         bufNr,
         method,
       ) as string[];
+      /**
+       * Original code is https://github.com/Milly/ddu-source-vimlsp
+       * Copyright (c) 2023 Milly
+      */
       const results = await Promise.all(servers.map(async (server) => {
         const data = deferred<unknown>();
         const id = register(denops, (response: unknown) => data.resolve(response));
