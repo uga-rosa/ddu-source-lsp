@@ -18,14 +18,14 @@ import {
 import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 import { isAbsolute, toFileUrl } from "https://deno.land/std@0.190.0/path/mod.ts";
 
-const VALID_CLIENT_NAME = {
+export const VALID_CLIENT_NAME = {
   "nvim-lsp": "nvim-lsp",
   "coc.nvim": "coc.nvim",
 } as const satisfies Record<string, string>;
 
-type ClientName = typeof VALID_CLIENT_NAME[keyof typeof VALID_CLIENT_NAME];
+export type ClientName = typeof VALID_CLIENT_NAME[keyof typeof VALID_CLIENT_NAME];
 
-function isClientName(clientName: string): clientName is ClientName {
+export function isClientName(clientName: string): clientName is ClientName {
   return Object.values(VALID_CLIENT_NAME).some((name) => clientName === name);
 }
 
@@ -102,13 +102,21 @@ async function makePositionParams(
   };
 }
 
+export async function bufNrToFileUrl(
+  denops: Denops,
+  bufNr: number,
+) {
+  const filepath = await denops.eval(`fnamemodify(bufname(${bufNr}), ":p")`) as string;
+  return isAbsolute(filepath) ? toFileUrl(filepath).href : filepath;
+}
+
 async function makeTextDocumentIdentifier(
   denops: Denops,
   bufNr: number,
 ): Promise<TextDocumentIdentifier> {
-  const filepath = await denops.eval(`fnamemodify(bufname(${bufNr}), ":p")`) as string;
-  const uri = isAbsolute(filepath) ? toFileUrl(filepath).href : filepath;
-  return { uri };
+  return {
+    uri: await bufNrToFileUrl(denops, bufNr),
+  };
 }
 
 /** Array of results per client */

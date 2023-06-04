@@ -3,6 +3,7 @@ import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { relative } from "https://deno.land/std@0.190.0/path/mod.ts";
 import { Diagnostic } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import { ClientName, isClientName, VALID_CLIENT_NAME } from "./nvim_lsp.ts";
 
 type DiagnosticVim = Diagnostic & {
   bufNr?: number;
@@ -10,13 +11,25 @@ type DiagnosticVim = Diagnostic & {
 };
 
 async function getDiagnostic(
+  clientName: ClientName,
   denops: Denops,
   bufNr: number | null,
 ): Promise<DiagnosticVim[]> {
-  return await denops.call(
-    `luaeval`,
-    `require('ddu_nvim_lsp').get_diagnostic(${bufNr})`,
-  ) as DiagnosticVim[];
+  switch (clientName) {
+    case VALID_CLIENT_NAME["nvim-lsp"]: {
+      return await denops.call(
+        `luaeval`,
+        `require('ddu_nvim_lsp').get_diagnostic(${bufNr})`,
+      ) as DiagnosticVim[];
+    }
+    case VALID_CLIENT_NAME["coc.nvim"]: {
+      return [];
+    }
+    default: {
+      clientName satisfies never;
+      return [];
+    }
+  }
 }
 
 /** @see :h vim.diagnostic.severity */
@@ -105,6 +118,7 @@ async function addIconAndHighlight(
 }
 
 type Params = {
+  clientName: ClientName;
   buffer: number | number[] | null;
 };
 
@@ -116,15 +130,21 @@ export class Source extends BaseSource<Params> {
     context: Context;
     sourceParams: Params;
   }): ReadableStream<ItemDiagnostic[]> {
-    const { denops, sourceParams: { buffer }, context } = args;
+    const { denops, sourceParams: { clientName, buffer }, context } = args;
 
     return new ReadableStream({
       async start(controller) {
+        if (!isClientName(clientName)) {
+          console.log(`Unknown client name: ${clientName}`);
+          controller.close();
+          return;
+        }
+
         const buffers = Array.isArray(buffer) ? buffer : [buffer];
 
         const diagnostics = (await Promise.all(
           buffers.map(async (bufNr) => {
-            return await getDiagnostic(denops, bufNr);
+            return await getDiagnostic(clientName, denops, bufNr);
           }),
         )).flat();
 
@@ -143,6 +163,7 @@ export class Source extends BaseSource<Params> {
 
   params(): Params {
     return {
+      clientName: "nvim-lsp",
       buffer: null,
     };
   }
