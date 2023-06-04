@@ -3,7 +3,8 @@ import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { relative } from "https://deno.land/std@0.190.0/path/mod.ts";
 import { Diagnostic, Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
-import { ClientName, isClientName, VALID_CLIENT_NAME } from "./nvim_lsp.ts";
+
+import { CLIENT_NAME, ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 
 type DduDiagnostic = Diagnostic & {
   bufNr?: number;
@@ -30,7 +31,7 @@ async function getDiagnostic(
   bufNr: number | null,
 ): Promise<DduDiagnostic[]> {
   switch (clientName) {
-    case VALID_CLIENT_NAME["nvim-lsp"]: {
+    case CLIENT_NAME["nvim-lsp"]: {
       const diagnostics = await denops.call(
         `luaeval`,
         `require('ddu_nvim_lsp').get_diagnostic(${bufNr})`,
@@ -40,7 +41,7 @@ async function getDiagnostic(
       }
       break;
     }
-    case VALID_CLIENT_NAME["coc.nvim"]: {
+    case CLIENT_NAME["coc.nvim"]: {
       const cocDiagnostics = await denops.call(
         `ddu#source#lsp#coc#diagnostics`,
       ) as CocDiagnostic[] | null;
@@ -130,7 +131,7 @@ function diagnosticToItem(diagnostic: DduDiagnostic): ItemDiagnostic {
  */
 function sortItemDiagnostic(items: ItemDiagnostic[], curBufNr: number) {
   items.sort((a, b) => {
-    if (a.action.bufNr === b.action.bufNr) {
+    if (a.action.bufNr && a.action.bufNr === b.action.bufNr) {
       if (a.data.severity === b.data.severity) {
         return a.action.lineNr - b.action.lineNr;
       } else {

@@ -19,4 +19,6 @@ Supported methods are:
 
 See [doc](./doc/ddu-source-nvim_lsp.txt) for details.
 
-Ddu source for neovim's diagnostic framework.
+# ddu-source-diagnostic
+
+Ddu source for diagnostic.
