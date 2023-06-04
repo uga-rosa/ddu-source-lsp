@@ -1,24 +1,28 @@
-*ddu-source-nvim_diagnostic.txt*	ddu source for neovim diagnostic
+*ddu-source-lsp_diagnostic.txt*			ddu source for diagnostic
 
 Author  : uga-rosa
 License : MIT license
 
-CONTENTS				*ddu-source-nvim_diagnostic-contents*
+CONTENTS				*ddu-source-lsp_diagnostic-contents*
 
-Introduction			|ddu-source-nvim_diagnostic-introduction|
-Install				|ddu-source-nvim_diagnostic-install|
-Examples			|ddu-source-nvim_diagnostic-examples|
-Params				|ddu-source-nvim_diagnostic-params|
-
-
-==============================================================================
-INTRODUCTION			*ddu-source-nvim_diagnostic-introduction*
-
-Ddu source for neovim's diagnostic framework (|vim.diagnostic|).
+Introduction			|ddu-source-lsp_diagnostic-introduction|
+Install				|ddu-source-lsp_diagnostic-install|
+Examples			|ddu-source-lsp_diagnostic-examples|
+Params				|ddu-source-lsp_diagnostic-params|
 
 
 ==============================================================================
-INSTALL					*ddu-source-nvim_diagnostic-install*
+INTRODUCTION			*ddu-source-lsp_diagnostic-introduction*
+
+Ddu source for diagnostic.
+
+Supported lsp clients are:
+	- nvim-lsp (neovim's diagnostic framework)
+	- coc.nvim
+
+
+==============================================================================
+INSTALL					*ddu-source-lsp_diagnostic-install*
 
 Please install "ddu.vim" and "denops.vim".
 
@@ -27,11 +31,11 @@ https://github.com/vim-denops/denops.vim
 
 
 ==============================================================================
-EXAMPLES				*ddu-source-nvim_diagnostic-examples*
+EXAMPLES				*ddu-source-lsp_diagnostic-examples*
 >
 	call ddu#start(#{
 	    \ sources: [#{
-	    \   name: 'nvim_diagnostic',
+	    \   name: 'lsp_diagnostic',
 	    \   params: #{
 	    \     buffer: 0,
 	    \   }
@@ -40,24 +44,24 @@ EXAMPLES				*ddu-source-nvim_diagnostic-examples*
 <
 
 ==============================================================================
-PARAMS					*ddu-source-nvim_diagnostic-params*
+PARAMS					*ddu-source-lsp_diagnostic-params*
 
-				*ddu-source-nvim_diagnostic-param-buffer*
+				*ddu-source-lsp_diagnostic-params-clientName*
+clientName	(string)
+	This parameter specifies the lsp client to be used. The available
+	options are:
+
+	- nvim-lsp: Neovim's diagnostic framework (|vim.diagnostic|)
+	- coc.nvim: https://github.com/neoclide/coc.nvim
+
+	Default: "nvim-lsp"
+
+				*ddu-source-lsp_diagnostic-param-buffer*
 buffer	(number | number[] | v:null)
 	Buffer number to get diagnostics from. Use 0 for current buffer or
 	v:null for all buffers.
 
 	Default: v:null
-
-				*ddu-source-nvim_diagnostic-param-options*
-options	(table)
-	The second argument of |vim.diagnostic.get()|. A table with the
-	following keys:
-	  • namespace: (number) Limit diagnostics to the given namespace.
-	  • lnum: (number) Limit diagnostics to the given line number.
-	  • severity: See |diagnostic-severity|.
-
-	Default: {}
 
 
 ==============================================================================
