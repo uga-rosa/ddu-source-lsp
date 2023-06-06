@@ -6,8 +6,8 @@ import { lspRequest, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
 import { locationToItem } from "../ddu_source_lsp/util.ts";
-import { handler } from "../ddu_source_lsp/handler.ts";
-import { ActionData } from "../@ddu-kinds/lsp.ts";
+import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
+import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type ReferenceParams = TextDocumentPositionParams & {
   context: ReferenceContext;
@@ -30,31 +30,24 @@ export class Source extends BaseSource<Params> {
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
     const { clientName, includeDeclaration } = sourceParams;
+    const method = "textDocument/references";
 
     return new ReadableStream({
       async start(controller) {
         const params = await makePositionParams(denops, ctx.bufNr, ctx.winId) as ReferenceParams;
         params.context = { includeDeclaration };
-
-        handler(
-          async () => {
-            const results = await lspRequest(
-              clientName,
-              denops,
-              ctx.bufNr,
-              "textDocument/references",
-              params,
-            );
-            if (results) {
-              return referencesToItems(results);
-            }
-          },
-          controller,
-          ctx.bufNr,
+        const results = await lspRequest(
           clientName,
-          "textDocument/references",
+          denops,
+          ctx.bufNr,
+          method,
           params,
         );
+        if (results) {
+          const items = referencesToItems(results, { clientName, bufNr: ctx.bufNr, method });
+          controller.enqueue(items);
+        }
+        controller.close();
       },
     });
   }
@@ -69,6 +62,7 @@ export class Source extends BaseSource<Params> {
 
 function referencesToItems(
   response: Results,
+  context: ItemContext,
 ) {
   return response.flatMap((result) => {
     /**
@@ -77,5 +71,14 @@ function referencesToItems(
      */
     const locations = result as Location[];
     return locations;
-  }).map(locationToItem);
+  }).map((location) => {
+    const item = locationToItem(location);
+    return {
+      ...item,
+      action: {
+        ...item.action,
+        context,
+      },
+    };
+  }).filter(isValidItem);
 }

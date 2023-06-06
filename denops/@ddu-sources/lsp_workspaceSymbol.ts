@@ -6,8 +6,8 @@ import { lspRequest, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName } from "../ddu_source_lsp/client.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
 import { KindName } from "./lsp_documentSymbol.ts";
-import { handler, ItemAction } from "../ddu_source_lsp/handler.ts";
-import { ActionData } from "../@ddu-kinds/lsp.ts";
+import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
+import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type Params = {
   clientName: ClientName;
@@ -27,33 +27,25 @@ export class Source extends BaseSource<Params> {
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceOptions, sourceParams, context: ctx } = args;
     const { clientName, query } = sourceParams;
+    const method = "workspace/symbol";
 
     return new ReadableStream({
-      start(controller) {
+      async start(controller) {
         const params = {
           query: sourceOptions.volatile ? args.input : query,
         };
 
-        handler(
-          async () => {
-            const results = await lspRequest(
-              clientName,
-              denops,
-              ctx.bufNr,
-              "workspace/symbol",
-              params,
-            );
-            if (results) {
-              return workspaceSymbolsToItems(results);
-            }
-          },
-          controller,
-          ctx.bufNr,
+        const results = await lspRequest(
           clientName,
-          "workspace/symbol",
+          denops,
+          ctx.bufNr,
+          method,
           params,
         );
-
+        if (results) {
+          const items = workspaceSymbolsToItems(results, { clientName, bufNr: ctx.bufNr, method });
+          controller.enqueue(items);
+        }
         controller.close();
       },
     });
@@ -69,7 +61,8 @@ export class Source extends BaseSource<Params> {
 
 function workspaceSymbolsToItems(
   response: Results,
-): ItemAction[] {
+  context: ItemContext,
+): Item<ActionData>[] {
   return response.flatMap((result) => {
     /**
      * Reference:
@@ -85,9 +78,10 @@ function workspaceSymbolsToItems(
         action: {
           path: uriToPath(symbol.location.uri),
           range: "range" in symbol.location ? symbol.location.range : undefined,
+          context,
         },
         data: symbol,
       };
     });
-  });
+  }).filter(isValidItem);
 }

@@ -6,8 +6,8 @@ import { lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams } from "../ddu_source_lsp/params.ts";
 import { locationToItem } from "../ddu_source_lsp/util.ts";
-import { handler } from "../ddu_source_lsp/handler.ts";
-import { ActionData } from "../@ddu-kinds/lsp.ts";
+import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
+import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type Params = {
   clientName: ClientName;
@@ -35,26 +35,18 @@ export class Source extends BaseSource<Params> {
 
     return new ReadableStream({
       async start(controller) {
-        const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
-        handler(
-          async () => {
-            const results = await lspRequest(
-              clientName,
-              denops,
-              ctx.bufNr,
-              method,
-              params,
-            );
-            if (results) {
-              return definitionsToItems(results);
-            }
-          },
-          controller,
-          ctx.bufNr,
+        const results = await lspRequest(
           clientName,
+          denops,
+          ctx.bufNr,
           method,
-          params,
+          await makePositionParams(denops, ctx.bufNr, ctx.winId),
         );
+        if (results) {
+          const items = definitionsToItems(results, { clientName, bufNr: ctx.bufNr, method });
+          controller.enqueue(items);
+        }
+        controller.close();
       },
     });
   }
@@ -69,7 +61,8 @@ export class Source extends BaseSource<Params> {
 
 export function definitionsToItems(
   results: Results,
-) {
+  context: ItemContext,
+): Item<ActionData>[] {
   return results.flatMap((result) => {
     /**
      * References:
@@ -85,10 +78,19 @@ export function definitionsToItems(
     } else {
       return locations.map(toLocation);
     }
-  }).map(locationToItem);
+  }).map((location) => {
+    const item = locationToItem(location);
+    return {
+      ...item,
+      action: {
+        ...item.action,
+        context,
+      },
+    };
+  }).filter(isValidItem);
 }
 
-export function toLocation(loc: Location | LocationLink): Location {
+function toLocation(loc: Location | LocationLink): Location {
   if ("uri" in loc && "range" in loc) {
     return loc;
   } else {

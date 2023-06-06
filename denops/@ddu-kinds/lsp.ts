@@ -13,12 +13,14 @@ export type ActionData =
   )
   & {
     range?: Range;
-    context: {
-      bufNr: number;
-      clientName: ClientName;
-      method: Method;
-    };
+    context: ItemContext;
   };
+
+export type ItemContext = {
+  clientName: ClientName;
+  bufNr: number;
+  method: Method;
+};
 
 async function getAction(
   denops: Denops,
