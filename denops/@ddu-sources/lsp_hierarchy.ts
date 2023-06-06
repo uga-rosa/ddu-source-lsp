@@ -1,6 +1,5 @@
 import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import {
   CallHierarchyIncomingCall,
   CallHierarchyItem,
@@ -8,13 +7,15 @@ import {
 } from "npm:vscode-languageserver-types@3.17.4-next.0";
 import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 
-import { isFeatureSupported, lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
-import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
+import { lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
+import { ClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
-import { createVirtualBuffer, isDenoUriWithFragment } from "../ddu_source_lsp/deno.ts";
+import { ActionData } from "../@ddu-kinds/lsp.ts";
+import { isDenoUriWithFragment } from "../ddu_source_lsp/handler/denols.ts";
+import { handler, ItemAction } from "../ddu_source_lsp/handler.ts";
 
-type ItemHierarchy = Omit<Item<ActionData>, "data"> & {
+type ItemHierarchy = Omit<ItemAction, "data"> & {
   data: CallHierarchyItem & {
     children?: ItemHierarchy[];
   };
@@ -30,7 +31,7 @@ export type Params = {
 };
 
 export class Source extends BaseSource<Params> {
-  kind = "file";
+  kind = "lsp";
 
   gather(args: {
     denops: Denops;
@@ -43,67 +44,56 @@ export class Source extends BaseSource<Params> {
     const { clientName, method } = sourceParams;
 
     return new ReadableStream({
-      async start(controller) {
-        if (!isClientName(clientName)) {
-          console.log(`Unknown client name: ${clientName}`);
-          return;
-        }
-
-        const isSupported = await isFeatureSupported(denops, ctx.bufNr, clientName, method);
-        if (!isSupported) {
-          if (isSupported === false) {
-            console.log(`${method} is not supported by any of the servers`);
-          } else {
-            console.log("No server attached");
-          }
-          return;
-        }
-
-        const searchChildren = async (callHierarchyItem: CallHierarchyItem) => {
-          const response = await lspRequest(denops, ctx.bufNr, clientName, method, { item: callHierarchyItem });
-          if (response) {
-            return callHierarchiesToItems(response, callHierarchyItem.uri);
-          }
-        };
-
-        const peek = async (parent: ItemHierarchy) => {
-          const hierarchyParent = parent.data;
-          const children = await searchChildren(hierarchyParent);
-          if (children && children.length > 0) {
-            children.forEach((child) => {
-              child.treePath = `${parent.treePath}/${child.data.name}`;
-            });
-            parent.isTree = true;
-            parent.data = {
-              ...hierarchyParent,
-              children,
+      start(controller) {
+        handler(
+          denops,
+          ctx.bufNr,
+          clientName,
+          method,
+          null,
+          controller,
+          async () => {
+            const searchChildren = async (callHierarchyItem: CallHierarchyItem) => {
+              const response = await lspRequest(denops, ctx.bufNr, clientName, method, { item: callHierarchyItem });
+              if (response) {
+                return callHierarchiesToItems(response, callHierarchyItem.uri);
+              }
             };
-            await Promise.all(children.map(async (child) => {
-              const callHierarchyItem = child.data;
-              await createVirtualBuffer(denops, ctx.bufNr, clientName, callHierarchyItem.uri);
-            }));
-          } else {
-            parent.isTree = false;
-          }
-          return parent;
-        };
 
-        if (args.parent) {
-          // called from expandItem
-          if (isLike({ data: { children: [] } }, args.parent)) {
-            const resolvedChildren = await Promise.all(args.parent.data.children.map(peek));
-            controller.enqueue(resolvedChildren);
-          }
-        } else {
-          const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
-          const items = await prepareCallHierarchy(denops, ctx.bufNr, clientName, params);
-          if (items && items.length > 0) {
-            const resolvedItems = await Promise.all(items.map(peek));
-            controller.enqueue(resolvedItems);
-          }
-        }
+            const peek = async (parent: ItemHierarchy) => {
+              const hierarchyParent = parent.data;
+              const children = await searchChildren(hierarchyParent);
+              if (children && children.length > 0) {
+                children.forEach((child) => {
+                  child.treePath = `${parent.treePath}/${child.data.name}`;
+                });
+                parent.isTree = true;
+                parent.data = {
+                  ...hierarchyParent,
+                  children,
+                };
+              } else {
+                parent.isTree = false;
+              }
+              return parent;
+            };
 
-        controller.close();
+            if (args.parent) {
+              // called from expandItem
+              if (isLike({ data: { children: [] } }, args.parent)) {
+                const resolvedChildren = await Promise.all(args.parent.data.children.map(peek));
+                return resolvedChildren;
+              }
+            } else {
+              const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
+              const items = await prepareCallHierarchy(denops, ctx.bufNr, clientName, params);
+              if (items && items.length > 0) {
+                const resolvedItems = await Promise.all(items.map(peek));
+                return resolvedItems;
+              }
+            }
+          },
+        );
       },
     });
   }
@@ -137,8 +127,7 @@ async function prepareCallHierarchy(
         word: callHierarchyItem.name,
         action: {
           path: uriToPath(callHierarchyItem.uri),
-          lineNr: callHierarchyItem.selectionRange.start.line + 1,
-          col: callHierarchyItem.selectionRange.start.character + 1,
+          range: callHierarchyItem.range,
         },
         treePath: `/${callHierarchyItem.name}`,
         data: callHierarchyItem,
@@ -151,8 +140,6 @@ function callHierarchiesToItems(
   response: Results,
   parentUri: string,
 ): ItemHierarchy[] {
-  const path = uriToPath(parentUri);
-
   return response.flatMap((result) => {
     /**
      * References:
@@ -163,14 +150,15 @@ function callHierarchiesToItems(
 
     return calls.flatMap((call) => {
       const linkItem = "from" in call ? call.from : call.to;
+      const path = uriToPath("from" in call ? linkItem.uri : parentUri);
+
       return call.fromRanges.map((range) => {
         return {
           word: linkItem.name,
           display: `${linkItem.name}:${range.start.line + 1}:${range.start.character + 1}`,
           action: {
             path,
-            lineNr: range.start.line + 1,
-            col: range.start.character + 1,
+            range,
           },
           data: linkItem,
         };

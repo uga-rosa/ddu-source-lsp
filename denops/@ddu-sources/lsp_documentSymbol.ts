@@ -1,21 +1,20 @@
 import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { DocumentSymbol, SymbolInformation, SymbolKind } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { isFeatureSupported, lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
-import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
+import { lspRequest, Results } from "../ddu_source_lsp/request.ts";
+import { ClientName } from "../ddu_source_lsp/client.ts";
 import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
+import { handler } from "../ddu_source_lsp/handler.ts";
+import { ActionData } from "../@ddu-kinds/lsp.ts";
 
 type Params = {
   clientName: ClientName;
 };
 
-const METHOD = "textDocument/documentSymbol" as const satisfies Method;
-
 export class Source extends BaseSource<Params> {
-  kind = "file";
+  kind = "lsp";
 
   gather(args: {
     denops: Denops;
@@ -29,34 +28,24 @@ export class Source extends BaseSource<Params> {
 
     return new ReadableStream({
       async start(controller) {
-        if (!isClientName(clientName)) {
-          console.log(`Unknown client name: ${clientName}`);
-          controller.close();
-          return;
-        }
-
-        const isSupported = await isFeatureSupported(denops, ctx.bufNr, clientName, METHOD);
-        if (!isSupported) {
-          if (isSupported === false) {
-            console.log(`${METHOD} is not supported by any of the servers`);
-          } else {
-            console.log("No server attached");
-          }
-          controller.close();
-          return;
-        }
-
         const params = {
           textDocument: await makeTextDocumentIdentifier(denops, ctx.bufNr),
         };
 
-        const response = await lspRequest(denops, ctx.bufNr, clientName, METHOD, params);
-        if (response) {
-          const items = documentSymbolsToItems(response, ctx.bufNr);
-          controller.enqueue(items);
-        }
-
-        controller.close();
+        handler(
+          denops,
+          ctx.bufNr,
+          clientName,
+          "textDocument/documentSymbol",
+          params,
+          controller,
+          async () => {
+            const results = await lspRequest(denops, ctx.bufNr, clientName, "textDocument/documentSymbol", params);
+            if (results) {
+              return documentSymbolsToItems(results, ctx.bufNr);
+            }
+          },
+        );
       },
     });
   }
@@ -71,7 +60,7 @@ export class Source extends BaseSource<Params> {
 function documentSymbolsToItems(
   response: Results,
   bufNr: number,
-): Item<ActionData>[] {
+) {
   const items = response.flatMap((result) => {
     /**
      * Reference:
@@ -107,7 +96,7 @@ function documentSymbolsToItems(
   });
 
   items.sort((a, b) => {
-    return (a.action?.range?.start.line as number) - (b.action?.range?.start.line as number);
+    return a.action.range.start.line - b.action.range.start.line;
   });
 
   return items;

@@ -4,7 +4,7 @@ import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { fromFileUrl, relative } from "https://deno.land/std@0.190.0/path/mod.ts";
 import { Diagnostic, Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { CLIENT_NAME, ClientName, isClientName } from "../ddu_source_lsp/client.ts";
+import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 import { bufNrToFileUrl, SomeRequired } from "../ddu_source_lsp/util.ts";
 
 type DduDiagnostic = Diagnostic & {
@@ -37,7 +37,7 @@ async function getDiagnostic(
   bufNr: number | null,
 ): Promise<DduDiagnostic[]> {
   switch (clientName) {
-    case CLIENT_NAME["nvim-lsp"]: {
+    case "nvim-lsp": {
       const diagnostics = await denops.call(
         `luaeval`,
         `require('ddu_nvim_lsp').get_diagnostic(${bufNr})`,
@@ -47,7 +47,7 @@ async function getDiagnostic(
       }
       break;
     }
-    case CLIENT_NAME["coc.nvim"]: {
+    case "coc.nvim": {
       const cocDiagnostics = await denops.call(
         `ddu#source#lsp#coc#diagnostics`,
       ) as CocDiagnostic[] | null;
@@ -57,7 +57,7 @@ async function getDiagnostic(
       }
       break;
     }
-    case CLIENT_NAME["vim-lsp"]: {
+    case "vim-lsp": {
       const diagnostics = await denops.call(
         `ddu#source#lsp#vimlsp#diagnostics`,
         bufNr ? await bufNrToFileUrl(denops, bufNr) : null,
