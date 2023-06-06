@@ -30,9 +30,9 @@ async function getAction(
   }
   if (action.range === undefined && action.context.method === "workspace/symbol") {
     const resolvedResults = await lspRequest(
+      action.context.clientName,
       denops,
       action.context.bufNr,
-      action.context.clientName,
       "workspaceSymbol/resolve",
       item.data,
     );
@@ -46,10 +46,10 @@ async function getAction(
   }
   if (action.path) {
     await createVirtualBuffer(
+      action.path,
+      action.context.clientName,
       denops,
       action.context.bufNr,
-      action.context.clientName,
-      action.path,
     );
   }
   return action;

@@ -48,7 +48,13 @@ export class Source extends BaseSource<Params> {
         handler(
           async () => {
             const searchChildren = async (callHierarchyItem: CallHierarchyItem) => {
-              const response = await lspRequest(denops, ctx.bufNr, clientName, method, { item: callHierarchyItem });
+              const response = await lspRequest(
+                clientName,
+                denops,
+                ctx.bufNr,
+                method,
+                { item: callHierarchyItem },
+              );
               if (response) {
                 return callHierarchiesToItems(response, callHierarchyItem.uri);
               }
@@ -111,7 +117,13 @@ async function prepareCallHierarchy(
   clientName: ClientName,
   params: TextDocumentPositionParams,
 ): Promise<ItemHierarchy[] | undefined> {
-  const response = await lspRequest(denops, bufNr, clientName, "textDocument/prepareCallHierarchy", params);
+  const response = await lspRequest(
+    clientName,
+    denops,
+    bufNr,
+    "textDocument/prepareCallHierarchy",
+    params,
+  );
   if (response) {
     return response.flatMap((result) => {
       /**

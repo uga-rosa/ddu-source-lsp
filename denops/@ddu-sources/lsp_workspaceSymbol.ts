@@ -36,7 +36,13 @@ export class Source extends BaseSource<Params> {
 
         handler(
           async () => {
-            const results = await lspRequest(denops, ctx.bufNr, clientName, "workspace/symbol", params);
+            const results = await lspRequest(
+              clientName,
+              denops,
+              ctx.bufNr,
+              "workspace/symbol",
+              params,
+            );
             if (results) {
               return workspaceSymbolsToItems(results);
             }

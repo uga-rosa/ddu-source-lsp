@@ -38,7 +38,13 @@ export class Source extends BaseSource<Params> {
         const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
         handler(
           async () => {
-            const results = await lspRequest(denops, ctx.bufNr, clientName, method, params);
+            const results = await lspRequest(
+              clientName,
+              denops,
+              ctx.bufNr,
+              method,
+              params,
+            );
             if (results) {
               return definitionsToItems(results);
             }

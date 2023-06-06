@@ -33,9 +33,9 @@ export function isMethod(
 export type Results = unknown[];
 
 export async function lspRequest(
+  clientName: ClientName,
   denops: Denops,
   bufNr: number,
-  clientName: ClientName,
   method: Method,
   params: unknown,
 ): Promise<Results | null> {

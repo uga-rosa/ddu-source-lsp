@@ -12,10 +12,10 @@ export function isDenoUriWithFragment(uri: string) {
 }
 
 export async function createVirtualBuffer(
+  uri: string,
+  clientName: ClientName,
   denops: Denops,
   bufNr: number,
-  clientName: ClientName,
-  uri: string,
 ) {
   if (!uri.startsWith("deno:")) {
     return;
@@ -28,7 +28,13 @@ export async function createVirtualBuffer(
   }
 
   const params = { textDocument: { uri } };
-  const results = await lspRequest(denops, bufNr, clientName, "deno/virtualTextDocument", params);
+  const results = await lspRequest(
+    clientName,
+    denops,
+    bufNr,
+    "deno/virtualTextDocument",
+    params,
+  );
   if (results) {
     const lines = (results[0] as string).split("\n");
     await fn.setbufline(denops, newBufNr, 1, lines);
