@@ -1,17 +1,13 @@
 import { BaseSource, Context, DduItem, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { Location, SymbolInformation, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import { SymbolInformation, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { lspRequest, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName } from "../ddu_source_lsp/client.ts";
-import { SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
+import { uriToPath } from "../ddu_source_lsp/util.ts";
 import { KindName } from "./lsp_documentSymbol.ts";
-import { handler } from "../ddu_source_lsp/handler.ts";
+import { handler, ItemAction } from "../ddu_source_lsp/handler.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
-
-type ItemAction = SomeRequired<Item<ActionData>, "action"> & {
-  data: SymbolInformation | WorkspaceSymbol;
-};
 
 type Params = {
   clientName: ClientName;
@@ -39,18 +35,17 @@ export class Source extends BaseSource<Params> {
         };
 
         handler(
-          denops,
+          async () => {
+            const results = await lspRequest(denops, ctx.bufNr, clientName, "workspace/symbol", params);
+            if (results) {
+              return workspaceSymbolsToItems(results);
+            }
+          },
+          controller,
           ctx.bufNr,
           clientName,
           "workspace/symbol",
           params,
-          controller,
-          async () => {
-            const results = await lspRequest(denops, ctx.bufNr, clientName, "workspace/symbol", params);
-            if (results) {
-              return workspaceSymbolsToItems(results, denops, ctx.bufNr, clientName);
-            }
-          },
         );
 
         controller.close();
@@ -68,9 +63,6 @@ export class Source extends BaseSource<Params> {
 
 function workspaceSymbolsToItems(
   response: Results,
-  denops: Denops,
-  bufNr: number,
-  clientName: ClientName,
 ): ItemAction[] {
   return response.flatMap((result) => {
     /**
@@ -87,22 +79,6 @@ function workspaceSymbolsToItems(
         action: {
           path: uriToPath(symbol.location.uri),
           range: "range" in symbol.location ? symbol.location.range : undefined,
-          resolveRange: "range" in symbol.location ? undefined : async () => {
-            const resolvedResults = await lspRequest(
-              denops,
-              bufNr,
-              clientName,
-              "workspaceSymbol/resolve",
-              symbol,
-            );
-            if (resolvedResults) {
-              /**
-               * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
-               */
-              const workspaceSymbol = resolvedResults[0] as WorkspaceSymbol;
-              return (workspaceSymbol.location as Location).range;
-            }
-          },
         },
         data: symbol,
       };

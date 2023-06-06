@@ -37,18 +37,17 @@ export class Source extends BaseSource<Params> {
         params.context = { includeDeclaration };
 
         handler(
-          denops,
-          ctx.bufNr,
-          clientName,
-          "textDocument/references",
-          params,
-          controller,
           async () => {
             const results = await lspRequest(denops, ctx.bufNr, clientName, "textDocument/references", params);
             if (results) {
               return referencesToItems(results);
             }
           },
+          controller,
+          ctx.bufNr,
+          clientName,
+          "textDocument/references",
+          params,
         );
       },
     });

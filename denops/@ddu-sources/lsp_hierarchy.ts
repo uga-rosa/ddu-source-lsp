@@ -46,12 +46,6 @@ export class Source extends BaseSource<Params> {
     return new ReadableStream({
       start(controller) {
         handler(
-          denops,
-          ctx.bufNr,
-          clientName,
-          method,
-          null,
-          controller,
           async () => {
             const searchChildren = async (callHierarchyItem: CallHierarchyItem) => {
               const response = await lspRequest(denops, ctx.bufNr, clientName, method, { item: callHierarchyItem });
@@ -93,6 +87,11 @@ export class Source extends BaseSource<Params> {
               }
             }
           },
+          controller,
+          ctx.bufNr,
+          clientName,
+          method,
+          null,
         );
       },
     });

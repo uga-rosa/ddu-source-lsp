@@ -33,18 +33,17 @@ export class Source extends BaseSource<Params> {
         };
 
         handler(
-          denops,
-          ctx.bufNr,
-          clientName,
-          "textDocument/documentSymbol",
-          params,
-          controller,
           async () => {
             const results = await lspRequest(denops, ctx.bufNr, clientName, "textDocument/documentSymbol", params);
             if (results) {
               return documentSymbolsToItems(results, ctx.bufNr);
             }
           },
+          controller,
+          ctx.bufNr,
+          clientName,
+          "textDocument/documentSymbol",
+          params,
         );
       },
     });

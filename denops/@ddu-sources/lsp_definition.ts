@@ -37,18 +37,17 @@ export class Source extends BaseSource<Params> {
       async start(controller) {
         const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
         handler(
-          denops,
-          ctx.bufNr,
-          clientName,
-          method,
-          params,
-          controller,
           async () => {
             const results = await lspRequest(denops, ctx.bufNr, clientName, method, params);
             if (results) {
               return definitionsToItems(results);
             }
           },
+          controller,
+          ctx.bufNr,
+          clientName,
+          method,
+          params,
         );
       },
     });

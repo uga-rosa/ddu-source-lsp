@@ -1,7 +1,10 @@
 import { ActionFlags, Actions, BaseKind, DduItem, Previewer } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { Range } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import { Location, Range, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 import { asyncFlatMap } from "../ddu_source_lsp/util.ts";
+import { ClientName } from "../ddu_source_lsp/client.ts";
+import { lspRequest, Method } from "../ddu_source_lsp/request.ts";
+import { createVirtualBuffer } from "../ddu_source_lsp/handler/denols.ts";
 
 export type ActionData =
   & (
@@ -10,22 +13,44 @@ export type ActionData =
   )
   & {
     range?: Range;
-    resolveRange?: () => Promise<Range | undefined>;
-    resolvePath?: (path: string) => Promise<void> | void;
+    context: {
+      bufNr: number;
+      clientName: ClientName;
+      method: Method;
+    };
   };
 
-async function getAction(item: DduItem) {
+async function getAction(
+  denops: Denops,
+  item: DduItem,
+) {
   const action = item.action as ActionData;
   if (!action) {
     return;
   }
-  if (action.resolveRange) {
-    action.range = await action.resolveRange();
-    action.resolveRange = undefined;
+  if (action.range === undefined && action.context.method === "workspace/symbol") {
+    const resolvedResults = await lspRequest(
+      denops,
+      action.context.bufNr,
+      action.context.clientName,
+      "workspaceSymbol/resolve",
+      item.data,
+    );
+    if (resolvedResults) {
+      /**
+       * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
+       */
+      const workspaceSymbol = resolvedResults[0] as WorkspaceSymbol;
+      action.range = (workspaceSymbol.location as Location).range;
+    }
   }
-  if (action.resolvePath && action.path) {
-    await action.resolvePath(action.path);
-    action.resolvePath = undefined;
+  if (action.path) {
+    await createVirtualBuffer(
+      denops,
+      action.context.bufNr,
+      action.context.clientName,
+      action.path,
+    );
   }
   return action;
 }
@@ -60,7 +85,7 @@ export class Kind extends BaseKind<Params> {
       await denops.cmd("normal! m`");
 
       for (const item of items) {
-        const action = await getAction(item);
+        const action = await getAction(denops, item);
         if (!action) {
           continue;
         }
@@ -108,7 +133,7 @@ export class Kind extends BaseKind<Params> {
       const { denops, items } = args;
 
       const qfloclist: QuickFix[] = await asyncFlatMap(items, async (item) => {
-        const action = await getAction(item);
+        const action = await getAction(denops, item);
         if (action) {
           return {
             bufnr: action.bufNr,
@@ -132,9 +157,10 @@ export class Kind extends BaseKind<Params> {
   };
 
   override async getPreviewer(args: {
+    denops: Denops;
     item: DduItem;
   }): Promise<Previewer | undefined> {
-    const action = await getAction(args.item);
+    const action = await getAction(args.denops, args.item);
     if (!action) {
       return;
     }
