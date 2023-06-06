@@ -1,6 +1,6 @@
 import { BaseSource, Context, DduItem, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { SymbolInformation, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import { Location, SymbolInformation, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { lspRequest, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName } from "../ddu_source_lsp/client.ts";
@@ -84,4 +84,28 @@ function workspaceSymbolsToItems(
       };
     });
   }).filter(isValidItem);
+}
+
+export async function resolveWorkspaceSymbol(
+  denops: Denops,
+  action: ActionData,
+  symbol: WorkspaceSymbol,
+) {
+  if (action.range) {
+    return;
+  }
+  const resolvedResults = await lspRequest(
+    action.context.clientName,
+    denops,
+    action.context.bufNr,
+    "workspaceSymbol/resolve",
+    symbol,
+  );
+  if (resolvedResults) {
+    /**
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
+     */
+    const workspaceSymbol = resolvedResults[0] as WorkspaceSymbol;
+    action.range = (workspaceSymbol.location as Location).range;
+  }
 }
