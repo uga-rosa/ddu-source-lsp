@@ -29,10 +29,4 @@ function M.request(bufNr, method, params)
   return { true, results }
 end
 
----@param bufNr integer
----@return table
-function M.get_diagnostic(bufNr)
-  return vim.diagnostic.get(bufNr)
-end
-
 return M
