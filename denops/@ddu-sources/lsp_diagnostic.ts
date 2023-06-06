@@ -63,25 +63,6 @@ type DduDiagnostic = Diagnostic & {
   path?: string;
 };
 
-type NvimDiagnostic = Pick<Diagnostic, "message" | "severity" | "source" | "code"> & {
-  lnum: number;
-  end_lnum: number;
-  col: number;
-  end_col: number;
-  bufnr: number;
-};
-
-type CocDiagnostic = Pick<Diagnostic, "message" | "source" | "code"> & {
-  file: string;
-  location: Location;
-  severity: keyof typeof Severity;
-};
-
-type VimDiagnostic = {
-  uri: string;
-  diagnostics: Diagnostic[];
-};
-
 async function getDiagnostic(
   clientName: ClientName,
   denops: Denops,
@@ -104,11 +85,19 @@ async function getDiagnostic(
   return [];
 }
 
+type NvimLspDiagnostic = Pick<Diagnostic, "message" | "severity" | "source" | "code"> & {
+  lnum: number;
+  end_lnum: number;
+  col: number;
+  end_col: number;
+  bufnr: number;
+};
+
 async function getNvimLspDiagnostics(
   denops: Denops,
   bufNr: number | null,
 ) {
-  return (await denops.call(`luaeval`, `vim.diagnostic.get(${bufNr})`) as NvimDiagnostic[] | null)
+  return (await denops.call(`luaeval`, `vim.diagnostic.get(${bufNr})`) as NvimLspDiagnostic[] | null)
     ?.map((diag) => {
       return {
         ...diag,
@@ -126,6 +115,12 @@ async function getNvimLspDiagnostics(
       };
     });
 }
+
+type CocDiagnostic = Pick<Diagnostic, "message" | "source" | "code"> & {
+  file: string;
+  location: Location;
+  severity: keyof typeof Severity;
+};
 
 async function getCocDiagnostics(
   denops: Denops,
