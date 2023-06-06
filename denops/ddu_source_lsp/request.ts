@@ -1,10 +1,11 @@
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { register, unregister } from "https://deno.land/x/denops_std@v5.0.0/lambda/mod.ts";
 import { deferred } from "https://deno.land/std@0.190.0/async/deferred.ts";
-import { deadline, DeadlineError } from "https://deno.land/std@0.190.0/async/deadline.ts";
+import { deadline } from "https://deno.land/std@0.190.0/async/deadline.ts";
 import { ensureObject } from "https://deno.land/x/unknownutil@v2.1.1/ensure.ts";
 
 import { ClientName } from "./client.ts";
+import { asyncFlatMap } from "./util.ts";
 
 export const SUPPORTED_METHOD = [
   "textDocument/declaration",
@@ -87,25 +88,27 @@ async function cocRequest(
   const activeServiceIds = services.filter((service) =>
     service.state === "running" && service.languageIds.includes(filetype)
   ).map((service) => service.id);
+
   if (activeServiceIds.length === 0) {
     console.log("No server attached");
     return null;
   }
 
   let errorCount = 0;
-  const results = await Promise.all(activeServiceIds.map(async (clientId) => {
+  const results = await asyncFlatMap(activeServiceIds, async (clientId) => {
     try {
       return await denops.call("CocRequest", clientId, method, params);
     } catch {
       errorCount++;
     }
-  }));
+    return [];
+  });
   if (errorCount === activeServiceIds.length) {
     console.log(`${method} is not supported by any of the servers`);
     return null;
   }
 
-  return results.filter((result) => result !== undefined);
+  return results;
 }
 
 async function vimLspRequest(
@@ -124,7 +127,7 @@ async function vimLspRequest(
   }
 
   let errorCount = 0;
-  const results = await Promise.all(servers.map(async (server) => {
+  const results: Results = await asyncFlatMap(servers, async (server) => {
     /**
      * Original code is https://github.com/Milly/ddu-source-vimlsp
      * Copyright (c) 2023 Milly
@@ -139,23 +142,23 @@ async function vimLspRequest(
       );
       const resolvedData = await deadline(data, 10_000);
       const { response } = ensureObject(resolvedData);
-      const { result } = ensureObject(response);
-      return result;
-    } catch (e) {
-      if (e instanceof DeadlineError) {
-        console.log(`No response from server ${server}`);
-      } else {
-        console.log(e);
+      const { result, error } = ensureObject(response);
+      if (result) {
+        return [result];
+      } else if (error) {
         errorCount++;
       }
+    } catch {
+      console.log(`No response from server ${server}`);
     } finally {
       unregister(denops, id);
     }
-  }));
+    return [];
+  });
   if (errorCount === servers.length) {
     console.log(`${method} is not supported by any of the servers`);
     return null;
   }
 
-  return results.filter((result) => result !== undefined);
+  return results;
 }
