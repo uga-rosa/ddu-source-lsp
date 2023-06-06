@@ -3,7 +3,7 @@ import { fromFileUrl, isAbsolute, toFileUrl } from "https://deno.land/std@0.190.
 import { Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
 import { ItemAction } from "./handler.ts";
 
-export async function bufNrToFileUrl(
+export async function bufNrToFileUri(
   denops: Denops,
   bufNr: number,
 ) {

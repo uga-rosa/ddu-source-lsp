@@ -1,7 +1,7 @@
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { Position, TextDocumentIdentifier } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { bufNrToFileUrl } from "./util.ts";
+import { bufNrToFileUri } from "./util.ts";
 
 export type TextDocumentPositionParams = {
   /** The text document. */
@@ -33,6 +33,6 @@ export async function makeTextDocumentIdentifier(
   bufNr: number,
 ): Promise<TextDocumentIdentifier> {
   return {
-    uri: await bufNrToFileUrl(denops, bufNr),
+    uri: await bufNrToFileUri(denops, bufNr),
   };
 }
