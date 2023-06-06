@@ -1,6 +1,6 @@
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { lspRequest } from "./request.ts";
-import { ClientName } from "./client.ts";
+import { lspRequest } from "../request.ts";
+import { ClientName } from "../client.ts";
 
 export function isDenoUriWithFragment(uri: string) {
   /**
@@ -17,7 +17,7 @@ export async function createVirtualBuffer(
   clientName: ClientName,
   uri: string,
 ) {
-  if (!uri.startsWith("deno:/")) {
+  if (!uri.startsWith("deno:")) {
     return;
   }
 
