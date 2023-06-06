@@ -1,13 +1,13 @@
 import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { Location, ReferenceContext } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { isFeatureSupported, lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
-import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
+import { lspRequest, Results } from "../ddu_source_lsp/request.ts";
+import { ClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
 import { locationToItem } from "../ddu_source_lsp/util.ts";
-import { createVirtualBuffer, isDenoUriWithFragment } from "../ddu_source_lsp/deno.ts";
+import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
+import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type ReferenceParams = TextDocumentPositionParams & {
   context: ReferenceContext;
@@ -18,10 +18,8 @@ type Params = {
   includeDeclaration: boolean;
 };
 
-const METHOD = "textDocument/references" as const satisfies Method;
-
 export class Source extends BaseSource<Params> {
-  kind = "file";
+  kind = "lsp";
 
   gather(args: {
     denops: Denops;
@@ -32,39 +30,23 @@ export class Source extends BaseSource<Params> {
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
     const { clientName, includeDeclaration } = sourceParams;
+    const method = "textDocument/references";
 
     return new ReadableStream({
       async start(controller) {
-        if (!isClientName(clientName)) {
-          console.log(`Unknown client name: ${clientName}`);
-          controller.close();
-          return;
-        }
-
-        const isSupported = await isFeatureSupported(denops, ctx.bufNr, clientName, METHOD);
-        if (!isSupported) {
-          if (isSupported === false) {
-            console.log(`${METHOD} is not supported by any of the servers`);
-          } else {
-            console.log("No server attached");
-          }
-          controller.close();
-          return;
-        }
-
         const params = await makePositionParams(denops, ctx.bufNr, ctx.winId) as ReferenceParams;
         params.context = { includeDeclaration };
-
-        const response = await lspRequest(denops, ctx.bufNr, clientName, METHOD, params);
-        if (response) {
-          const items = referencesToItems(response);
-          await Promise.all(items.map(async (item) => {
-            const location = item.data as Location;
-            await createVirtualBuffer(denops, ctx.bufNr, clientName, location.uri);
-          }));
+        const results = await lspRequest(
+          clientName,
+          denops,
+          ctx.bufNr,
+          method,
+          params,
+        );
+        if (results) {
+          const items = referencesToItems(results, { clientName, bufNr: ctx.bufNr, method });
           controller.enqueue(items);
         }
-
         controller.close();
       },
     });
@@ -80,7 +62,8 @@ export class Source extends BaseSource<Params> {
 
 function referencesToItems(
   response: Results,
-): Item<ActionData>[] {
+  context: ItemContext,
+) {
   return response.flatMap((result) => {
     /**
      * Reference:
@@ -88,10 +71,14 @@ function referencesToItems(
      */
     const locations = result as Location[];
     return locations;
-  }).flatMap((location) => {
-    if (isDenoUriWithFragment(location.uri)) {
-      return [];
-    }
-    return locationToItem(location);
-  });
+  }).map((location) => {
+    const item = locationToItem(location);
+    return {
+      ...item,
+      action: {
+        ...item.action,
+        context,
+      },
+    };
+  }).filter(isValidItem);
 }

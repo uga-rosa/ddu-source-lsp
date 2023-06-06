@@ -1,21 +1,20 @@
 import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { DocumentSymbol, SymbolInformation, SymbolKind } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { isFeatureSupported, lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
-import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
+import { lspRequest, Results } from "../ddu_source_lsp/request.ts";
+import { ClientName } from "../ddu_source_lsp/client.ts";
 import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
+import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
+import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type Params = {
   clientName: ClientName;
 };
 
-const METHOD = "textDocument/documentSymbol" as const satisfies Method;
-
 export class Source extends BaseSource<Params> {
-  kind = "file";
+  kind = "lsp";
 
   gather(args: {
     denops: Denops;
@@ -26,36 +25,28 @@ export class Source extends BaseSource<Params> {
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
     const { clientName } = sourceParams;
+    const method = "textDocument/documentSymbol";
 
     return new ReadableStream({
       async start(controller) {
-        if (!isClientName(clientName)) {
-          console.log(`Unknown client name: ${clientName}`);
-          controller.close();
-          return;
-        }
-
-        const isSupported = await isFeatureSupported(denops, ctx.bufNr, clientName, METHOD);
-        if (!isSupported) {
-          if (isSupported === false) {
-            console.log(`${METHOD} is not supported by any of the servers`);
-          } else {
-            console.log("No server attached");
-          }
-          controller.close();
-          return;
-        }
-
         const params = {
           textDocument: await makeTextDocumentIdentifier(denops, ctx.bufNr),
         };
-
-        const response = await lspRequest(denops, ctx.bufNr, clientName, METHOD, params);
-        if (response) {
-          const items = documentSymbolsToItems(response, ctx.bufNr);
+        const results = await lspRequest(
+          clientName,
+          denops,
+          ctx.bufNr,
+          method,
+          params,
+        );
+        if (results) {
+          const items = documentSymbolsToItems(
+            results,
+            ctx.bufNr,
+            { clientName, bufNr: ctx.bufNr, method },
+          );
           controller.enqueue(items);
         }
-
         controller.close();
       },
     });
@@ -71,6 +62,7 @@ export class Source extends BaseSource<Params> {
 function documentSymbolsToItems(
   response: Results,
   bufNr: number,
+  context: ItemContext,
 ): Item<ActionData>[] {
   const items = response.flatMap((result) => {
     /**
@@ -82,35 +74,33 @@ function documentSymbolsToItems(
     return symbols.map((symbol) => {
       const kindName = KindName[symbol.kind];
       const kind = `[${kindName}]`.padEnd(15, " ");
-      if ("location" in symbol) {
-        // symbol is SymbolInformation
-        return {
-          word: `${kind} ${symbol.name}`,
-          action: {
+      return {
+        word: `${kind} ${symbol.name}`,
+        action: isSymbolInformation(symbol)
+          ? {
             path: uriToPath(symbol.location.uri),
             range: symbol.location.range,
-          },
-          data: symbol,
-        };
-      } else {
-        // symbol is DocumentSymbol
-        return {
-          word: `${kind} ${symbol.name}`,
-          action: {
+            context,
+          }
+          : {
             bufNr,
             range: symbol.selectionRange,
+            context,
           },
-          data: symbol,
-        };
-      }
+        data: symbol,
+      };
     });
-  });
+  }).filter(isValidItem);
 
   items.sort((a, b) => {
-    return (a.action?.range?.start.line as number) - (b.action?.range?.start.line as number);
+    return a.action.range.start.line - b.action.range.start.line;
   });
 
   return items;
+}
+
+function isSymbolInformation(symbol: SymbolInformation | DocumentSymbol): symbol is SymbolInformation {
+  return "location" in symbol;
 }
 
 export const KindName = {

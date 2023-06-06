@@ -1,10 +1,8 @@
-import { Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.4.2/file.ts";
 import { fromFileUrl, isAbsolute, toFileUrl } from "https://deno.land/std@0.190.0/path/mod.ts";
 import { Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-export async function bufNrToFileUrl(
+export async function bufNrToFileUri(
   denops: Denops,
   bufNr: number,
 ) {
@@ -14,7 +12,7 @@ export async function bufNrToFileUrl(
 
 export function locationToItem(
   location: Location,
-): Item<ActionData> {
+) {
   const { uri, range } = location;
   const path = uriToPath(uri);
   const { line, character } = range.start;
@@ -22,11 +20,7 @@ export function locationToItem(
   return {
     word: path,
     display: `${path}:${lineNr}:${col}`,
-    action: {
-      path,
-      lineNr: location.range.start.line + 1,
-      col: location.range.start.character + 1,
-    },
+    action: { path, range },
     data: location,
   };
 }
@@ -40,3 +34,11 @@ export function uriToPath(uri: string) {
 }
 
 export type SomeRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+
+export const asyncFlatMap = async <Item, Res>(
+  arr: Item[],
+  callback: (value: Item, index: number, array: Item[]) => Promise<Res>,
+) => {
+  const a = await Promise.all(arr.map(callback));
+  return a.flat();
+};
