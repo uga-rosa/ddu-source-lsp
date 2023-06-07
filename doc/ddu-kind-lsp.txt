@@ -1,0 +1,55 @@
+*ddu-kind-lsp.txt* *ddu-kind-lsp*		LSP kind for ddu.vim
+
+Author: uga-rosa
+License: MIT license
+
+CONTENTS					*ddu-kind-lsp-contents*
+
+Introduction				|ddu-kind-lsp-introduction|
+Examples				|ddu-kind-lsp-examples|
+Actions					|ddu-kind-lsp-actions|
+Preview params				|ddu-kind-lsp-preview-params|
+Params					|ddu-kind-lsp-params|
+
+
+==============================================================================
+INTRODUCTION					*ddu-kind-lsp-introduction*
+
+This kind implements operations for |ddu-source-lsp|.
+
+
+==============================================================================
+EXAMPLES					*ddu-kind-lsp-examples*
+>
+	call ddu#custom#patch_global(#{
+	    \   kindOptions: #{
+	    \     lsp: #{
+	    \       defaultAction: 'open',
+	    \     },
+	    \   }
+	    \ })
+<
+
+==============================================================================
+ACTIONS						*ddu-kind-lsp-actions*
+
+						*ddu-kind-lsp-action-open*
+open
+		Open the items.
+		If the item is buffer, switch to the buffer.
+		If the item is file, open the file.
+
+		params:
+			{command}:	open command.
+					(Default: "edit")
+			{tagstack}:	Whether to set tagstack with the
+					position before the move.
+					(Default: true)
+
+						*ddu-kind-lsp-action-quickfix*
+quickfix
+		Set the |quickfix| list and open the |quickfix| window.
+
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:noet:fen:noet:

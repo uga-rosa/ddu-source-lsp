@@ -17,6 +17,7 @@ FAQ					|ddu-source-lsp-faq|
 INTRODUCTION					*ddu-source-lsp-introduction*
 
 Ddu source for lsp.
+See |ddu-kind-lsp| for available item actions.
 
 Supported lsp clients are:
 	- nvim-lsp (neovim's built-in client)
