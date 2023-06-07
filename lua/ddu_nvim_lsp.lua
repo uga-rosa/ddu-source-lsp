@@ -29,4 +29,12 @@ function M.request(bufNr, method, params)
   return { true, results }
 end
 
+---@param name string
+---@return integer|nil
+function M.get_client_id_by_name(name)
+  for _, client in ipairs(vim.lsp.get_active_clients({ name = name })) do
+    return client.id
+  end
+end
+
 return M

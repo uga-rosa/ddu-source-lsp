@@ -42,6 +42,16 @@ export async function createVirtualBuffer(
     await fn.setbufvar(denops, newBufNr, "&buftype", "nofile");
     await fn.setbufvar(denops, newBufNr, "&modified", 0);
     await fn.setbufvar(denops, newBufNr, "&modifiable", 0);
+    if (clientName === "nvim-lsp") {
+      const clientId = await denops.call(
+        `luaeval`,
+        `require('ddu_nvim_lsp').get_client_id_by_name('denols')`,
+      );
+      await denops.call(
+        `luaeval`,
+        `vim.lsp.buf_attach_client(${newBufNr}, ${clientId})`,
+      );
+    }
   }
 }
 
