@@ -1,9 +1,38 @@
+/*
+  The original code is here.
+  https://github.com/Shougo/ddu-kind-file/blob/3eeb5cabfb818357df77f73c573ec377f0cb671a/denops/%40ddu-kinds/file.ts
+
+  MIT license
+
+  Copyright (c) Shougo Matsushita <Shougo.Matsu at gmail.com>
+
+  Permission is hereby granted, free of charge, to any person obtaining
+  a copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to
+  the following conditions:
+
+  The above copyright notice and this permission notice shall be included
+  in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+  OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+  CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+  TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+  SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
 import {
   ActionFlags,
   Actions,
   BaseKind,
   Context,
   DduItem,
+  PreviewContext,
   Previewer,
 } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
@@ -62,6 +91,10 @@ type QuickFix = {
   lnum?: number;
   col?: number;
   text: string;
+};
+
+type PreviewOption = {
+  previewCmds?: string[];
 };
 
 type Params = Record<never, never>;
@@ -165,10 +198,68 @@ export class Kind extends BaseKind<Params> {
   override async getPreviewer(args: {
     denops: Denops;
     item: DduItem;
+    actionParams: unknown;
+    previewContext: PreviewContext;
   }): Promise<Previewer | undefined> {
     const action = await getAction(args.denops, args.item);
     if (!action) {
       return;
+    }
+
+    const param = args.actionParams as PreviewOption;
+
+    if (param.previewCmds?.length && action.path && isFile(action.path)) {
+      const previewHeight = args.previewContext.height;
+      let startLine = 0;
+      let lineNr = 0;
+      if (action.range) {
+        lineNr = action.range.start.line + 1;
+        startLine = Math.max(
+          0,
+          Math.ceil(lineNr - previewHeight / 2),
+        );
+      }
+
+      const pairs: Record<string, string> = {
+        s: action.path,
+        l: String(lineNr),
+        h: String(previewHeight),
+        e: String(startLine + previewHeight),
+        b: String(startLine),
+        "%": "%",
+      };
+      const replacer = (
+        match: string,
+        p1: string,
+      ) => {
+        if (!p1.length || !(p1 in pairs)) {
+          throw `invalid item ${match}`;
+        }
+        return pairs[p1];
+      };
+      const replaced: string[] = [];
+      try {
+        for (const cmd of param.previewCmds) {
+          replaced.push(cmd.replace(/%(.?)/g, replacer));
+        }
+      } catch (e) {
+        return {
+          kind: "nofile",
+          contents: ["Error", e.toString()],
+          highlights: [{
+            name: "ddu-kind-lsp-error",
+            hl_group: "Error",
+            row: 1,
+            col: 1,
+            width: 5,
+          }],
+        };
+      }
+
+      return {
+        kind: "terminal",
+        cmds: replaced,
+      };
     }
 
     return {
@@ -181,5 +272,14 @@ export class Kind extends BaseKind<Params> {
 
   override params(): Params {
     return {};
+  }
+}
+
+function isFile(path: string) {
+  try {
+    const stat = Deno.statSync(path);
+    return stat.isFile;
+  } catch {
+    return false;
   }
 }
