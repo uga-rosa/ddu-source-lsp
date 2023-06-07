@@ -247,7 +247,7 @@ export class Kind extends BaseKind<Params> {
           kind: "nofile",
           contents: ["Error", e.toString()],
           highlights: [{
-            name: "ddu-kind-file-error",
+            name: "ddu-kind-lsp-error",
             hl_group: "Error",
             row: 1,
             col: 1,
