@@ -32,6 +32,7 @@ import {
   BaseKind,
   Context,
   DduItem,
+  PreviewContext,
   Previewer,
 } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
@@ -90,6 +91,10 @@ type QuickFix = {
   lnum?: number;
   col?: number;
   text: string;
+};
+
+type PreviewOption = {
+  previewCmds?: string[];
 };
 
 type Params = Record<never, never>;
@@ -193,10 +198,68 @@ export class Kind extends BaseKind<Params> {
   override async getPreviewer(args: {
     denops: Denops;
     item: DduItem;
+    actionParams: unknown;
+    previewContext: PreviewContext;
   }): Promise<Previewer | undefined> {
     const action = await getAction(args.denops, args.item);
     if (!action) {
       return;
+    }
+
+    const param = args.actionParams as PreviewOption;
+
+    if (action.path && param.previewCmds?.length) {
+      const previewHeight = args.previewContext.height;
+      let startLine = 0;
+      let lineNr = 0;
+      if (action.range) {
+        lineNr = action.range.start.line + 1;
+        startLine = Math.max(
+          0,
+          Math.ceil(lineNr - previewHeight / 2),
+        );
+      }
+
+      const pairs: Record<string, string> = {
+        s: action.path,
+        l: String(lineNr),
+        h: String(previewHeight),
+        e: String(startLine + previewHeight),
+        b: String(startLine),
+        "%": "%",
+      };
+      const replacer = (
+        match: string,
+        p1: string,
+      ) => {
+        if (!p1.length || !(p1 in pairs)) {
+          throw `invalid item ${match}`;
+        }
+        return pairs[p1];
+      };
+      const replaced: string[] = [];
+      try {
+        for (const cmd of param.previewCmds) {
+          replaced.push(cmd.replace(/%(.?)/g, replacer));
+        }
+      } catch (e) {
+        return {
+          kind: "nofile",
+          contents: ["Error", e.toString()],
+          highlights: [{
+            name: "ddu-kind-file-error",
+            hl_group: "Error",
+            row: 1,
+            col: 1,
+            width: 5,
+          }],
+        };
+      }
+
+      return {
+        kind: "terminal",
+        cmds: replaced,
+      };
     }
 
     return {

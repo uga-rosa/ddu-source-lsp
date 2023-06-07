@@ -52,4 +52,29 @@ quickfix
 
 
 ==============================================================================
+PREVIEW PARAMS					*ddu-kind-lsp-preview-params*
+
+				*ddu-kind-lsp-preview-param-previewCmds*
+previewCmds	(string[])
+		External commands to preview the file.
+		If it is not specified, normal buffer is used.
+		You can use the format like the following.
+		Symbol		Result ~
+		--------	------
+		%%		%
+		%s		Path to preview
+		%l		Line in file
+		%h		Height of preview window
+		%e		End line of preview
+		%b		Start line of preview
+
+		Example:
+		"bat" (https://github.com/sharkdp/bat) preview >
+		['bat', '-n', '%s', '-r', '%b:%e', '--highlight-line', '%l']
+<
+		Preview with "less" >
+		['less', '+%b', '%s']
+<
+
+==============================================================================
 vim:tw=78:ts=8:ft=help:norl:noet:fen:noet:
