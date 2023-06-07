@@ -208,7 +208,7 @@ export class Kind extends BaseKind<Params> {
 
     const param = args.actionParams as PreviewOption;
 
-    if (action.path && param.previewCmds?.length) {
+    if (param.previewCmds?.length && action.path && isFile(action.path)) {
       const previewHeight = args.previewContext.height;
       let startLine = 0;
       let lineNr = 0;
@@ -272,5 +272,14 @@ export class Kind extends BaseKind<Params> {
 
   override params(): Params {
     return {};
+  }
+}
+
+function isFile(path: string) {
+  try {
+    const stat = Deno.statSync(path);
+    return stat.isFile;
+  } catch {
+    return false;
   }
 }
