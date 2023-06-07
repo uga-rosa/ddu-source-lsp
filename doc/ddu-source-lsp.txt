@@ -187,6 +187,13 @@ query	(string)
 
 	Default: ""
 
+				*ddu-source-lsp-params-autoExpandSingle*
+autoExpandSingle	(boolean)
+	Available in |ddu-source-lsp_callHierarchy|.
+	If there is only one item when you open, expand automatically.
+
+	Default: true
+
 
 ==============================================================================
 FREQUENTLY ASKED QUESTIONS (FAQ)		*ddu-source-lsp-faq*

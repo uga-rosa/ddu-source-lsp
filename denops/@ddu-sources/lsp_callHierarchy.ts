@@ -27,6 +27,7 @@ export type Params = {
     | "callHierarchy/incomingCalls"
     | "callHierarchy/outgoingCalls"
   >;
+  autoExpandSingle: boolean;
 };
 
 export class Source extends BaseSource<Params> {
@@ -40,7 +41,7 @@ export class Source extends BaseSource<Params> {
     parent?: DduItem;
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
-    const { clientName, method } = sourceParams;
+    const { clientName, method, autoExpandSingle } = sourceParams;
 
     return new ReadableStream({
       async start(controller) {
@@ -97,6 +98,12 @@ export class Source extends BaseSource<Params> {
           if (items && items.length > 0) {
             const resolvedItems = await Promise.all(items.map(peek));
             controller.enqueue(resolvedItems);
+            if (autoExpandSingle && items.length === 1 && items[0].data.children) {
+              items[0].isExpanded = true;
+              const children = await Promise.all(items[0].data.children.map(peek));
+              children.forEach((child) => child.level = 1);
+              controller.enqueue(children);
+            }
           }
         }
 
@@ -109,6 +116,7 @@ export class Source extends BaseSource<Params> {
     return {
       clientName: "nvim-lsp",
       method: "callHierarchy/incomingCalls",
+      autoExpandSingle: true,
     };
   }
 }
