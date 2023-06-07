@@ -1,4 +1,11 @@
-import { ActionFlags, Actions, BaseKind, DduItem, Previewer } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
+import {
+  ActionFlags,
+  Actions,
+  BaseKind,
+  Context,
+  DduItem,
+  Previewer,
+} from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { Range, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
@@ -41,7 +48,13 @@ async function getAction(
 
 type OpenParams = {
   command: string;
+  tagstack: boolean;
 };
+
+const defaultOpenParams = {
+  command: "edit",
+  tagstack: true,
+} as const satisfies OpenParams;
 
 type QuickFix = {
   bufnr?: number;
@@ -57,16 +70,25 @@ export class Kind extends BaseKind<Params> {
   override actions: Actions<Params> = {
     open: async (args: {
       denops: Denops;
+      context: Context;
       actionParams: unknown;
       items: DduItem[];
     }) => {
-      const { denops, actionParams, items } = args;
-
-      const params = actionParams as OpenParams;
-      const openCommand = params.command ?? "edit";
+      const { denops, context: ctx, actionParams, items } = args;
+      const openParams = {
+        ...actionParams as OpenParams,
+        ...defaultOpenParams,
+      };
 
       // Add original location to jumplist
       await denops.cmd("normal! m`");
+
+      if (openParams.tagstack) {
+        // Push tagstack
+        const from = await fn.getpos(denops, ".");
+        const tagname = await fn.expand(denops, "<cword>");
+        await fn.settagstack(denops, ctx.winId, { items: [{ from, tagname }] }, "t");
+      }
 
       for (const item of items) {
         const action = await getAction(denops, item);
@@ -78,10 +100,10 @@ export class Kind extends BaseKind<Params> {
 
         // bufnr() may return -1
         if (bufNr > 0) {
-          if (openCommand !== "edit") {
+          if (openParams.command !== "edit") {
             await denops.call(
               "ddu#util#execute_path",
-              openCommand,
+              openParams.command,
               action.path,
             );
           }
@@ -91,7 +113,7 @@ export class Kind extends BaseKind<Params> {
         } else {
           await denops.call(
             "ddu#util#execute_path",
-            openCommand,
+            openParams.command,
             action.path,
           );
         }
