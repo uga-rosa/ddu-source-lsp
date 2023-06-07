@@ -17,6 +17,8 @@ Supported methods are:
 - workspace/symbol
 - callHierarchy/incomingCalls
 - callHierarchy/outgoingCalls
+- typeHierarchy/supertypes
+- typeHierarchy/subtypes
 
 See [doc](./doc/ddu-source-lsp.txt) for details.
 
