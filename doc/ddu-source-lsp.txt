@@ -121,7 +121,7 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 	- callHierarchy/incomingCalls
 	- callHierarchy/outgoingCalls
 
-	For a function calling structure as depicted below,
+	For a function calling hierarchy structure as depicted below,
 >
 	function foo() {
 	  bar();
@@ -135,13 +135,43 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 
 	- incomingCalls
 		- baz
-		  - bar
-		    - foo
+		 - bar
+		  - foo
 
 	- outgoingCalls
 		- foo
-		  - bar
-		    - baz
+		 - bar
+		  - baz
+
+						*ddu-source-lsp_typeHierarchy*
+- lsp_typeHierarchy
+	Lists the type hierarchy in a tree structure. Use
+	|ddu-ui-ff-action-expandItem| to expand the tree. The following
+	methods are integrated. Which one to use can be specified in params
+	(|ddu-source-lsp-param-method|).
+
+	- typeHierarchy/supertypes
+	- typeHierarchy/subtypes
+
+	For a class inheritance hierarchy structure as depicted below,
+>
+	class foo {};
+
+	class bar : foo {};
+
+	class baz : bar {};
+<
+	the respective call hierarchy trees would look like this:
+
+	- supertypes
+		- baz
+		 - bar
+		    foo
+
+	- subtypes
+		- foo
+		 - bar
+		    baz
 
 
 ==============================================================================
@@ -190,7 +220,8 @@ query	(string)
 
 				*ddu-source-lsp-params-autoExpandSingle*
 autoExpandSingle	(boolean)
-	Available in |ddu-source-lsp_callHierarchy|.
+	Available in |ddu-source-lsp_callHierarchy| and
+	|ddu-source-lsp_typeHierarchy|.
 	If there is only one item when you open, expand automatically.
 
 	Default: true

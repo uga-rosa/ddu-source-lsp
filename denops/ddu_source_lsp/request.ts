@@ -19,6 +19,9 @@ export const SUPPORTED_METHOD = [
   "textDocument/prepareCallHierarchy",
   "callHierarchy/incomingCalls",
   "callHierarchy/outgoingCalls",
+  "textDocument/prepareTypeHierarchy",
+  "typeHierarchy/supertypes",
+  "typeHierarchy/subtypes",
   "deno/virtualTextDocument",
 ] as const satisfies readonly string[];
 
