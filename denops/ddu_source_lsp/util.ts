@@ -35,10 +35,10 @@ export function uriToPath(uri: string) {
 
 export type SomeRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 
-export const asyncFlatMap = async <Item, Res>(
+export async function asyncFlatMap<Item, Res>(
   arr: Item[],
   callback: (value: Item, index: number, array: Item[]) => Promise<Res>,
-) => {
+) {
   const a = await Promise.all(arr.map(callback));
   return a.flat();
-};
+}
