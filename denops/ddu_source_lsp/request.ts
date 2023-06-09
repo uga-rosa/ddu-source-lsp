@@ -100,7 +100,8 @@ async function cocRequest(
   let errorCount = 0;
   const results = await asyncFlatMap(activeServiceIds, async (clientId) => {
     try {
-      return await denops.call("CocRequest", clientId, method, params) ?? [];
+      const result = await denops.call("CocRequest", clientId, method, params);
+      return result ? [result] : []
     } catch {
       errorCount++;
     }
