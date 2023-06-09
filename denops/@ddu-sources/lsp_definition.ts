@@ -73,10 +73,10 @@ export function definitionsToItems(
      */
     const locations = result as Location | Location[] | LocationLink[];
 
-    if (!Array.isArray(locations)) {
-      return [locations];
-    } else {
+    if (Array.isArray(locations)) {
       return locations.map(toLocation);
+    } else {
+      return [locations];
     }
   }).map((location) => {
     const item = locationToItem(location);
