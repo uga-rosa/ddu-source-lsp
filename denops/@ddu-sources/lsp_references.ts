@@ -70,9 +70,8 @@ function referencesToItems(
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_references
      */
     const locations = result as Location[];
-    return locations;
-  }).map((location) => {
-    const item = locationToItem(location);
+    return locations.map(locationToItem);
+  }).map((item) => {
     return {
       ...item,
       action: {

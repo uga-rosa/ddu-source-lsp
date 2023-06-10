@@ -74,12 +74,11 @@ export function definitionsToItems(
     const locations = result as Location | Location[] | LocationLink[];
 
     if (Array.isArray(locations)) {
-      return locations.map(toLocation);
+      return locations.map(locationToItem);
     } else {
-      return [locations];
+      return [locationToItem(locations)];
     }
-  }).map((location) => {
-    const item = locationToItem(location);
+  }).map((item) => {
     return {
       ...item,
       action: {
@@ -88,15 +87,4 @@ export function definitionsToItems(
       },
     };
   }).filter(isValidItem);
-}
-
-function toLocation(loc: Location | LocationLink): Location {
-  if ("uri" in loc && "range" in loc) {
-    return loc;
-  } else {
-    return {
-      uri: loc.targetUri,
-      range: loc.targetSelectionRange,
-    };
-  }
 }
