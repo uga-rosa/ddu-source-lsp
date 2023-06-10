@@ -14,7 +14,8 @@ import { uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
-type ItemHierarchy = Omit<Item<ActionData>, "data"> & {
+type ItemHierarchy = Omit<Item<ActionData>, "action" | "data"> & {
+  action: ActionData;
   data: CallHierarchyItem & {
     children?: ItemHierarchy[];
   };
@@ -45,18 +46,20 @@ export class Source extends BaseSource<Params> {
 
     return new ReadableStream({
       async start(controller) {
-        const searchChildren = async (callHierarchyItem: CallHierarchyItem) => {
+        const searchChildren = async (parentItem: ItemHierarchy) => {
+          const parent = parentItem.data;
           const response = await lspRequest(
             clientName,
             denops,
             ctx.bufNr,
             method,
-            { item: callHierarchyItem },
+            { item: parent },
+            parentItem.action.context.clientId,
           );
           if (response) {
             return callHierarchiesToItems(
               response,
-              callHierarchyItem.uri,
+              parent.uri,
               clientName,
               ctx.bufNr,
               method,
@@ -64,22 +67,21 @@ export class Source extends BaseSource<Params> {
           }
         };
 
-        const peek = async (parent: ItemHierarchy) => {
-          const hierarchyParent = parent.data;
-          const children = await searchChildren(hierarchyParent);
+        const peek = async (parentItem: ItemHierarchy) => {
+          const children = await searchChildren(parentItem);
           if (children && children.length > 0) {
             children.forEach((child) => {
-              child.treePath = `${parent.treePath}/${child.data.name}`;
+              child.treePath = `${parentItem.treePath}/${child.data.name}`;
             });
-            parent.isTree = true;
-            parent.data = {
-              ...hierarchyParent,
+            parentItem.isTree = true;
+            parentItem.data = {
+              ...parentItem.data,
               children,
             };
           } else {
-            parent.isTree = false;
+            parentItem.isTree = false;
           }
-          return parent;
+          return parentItem;
         };
 
         if (args.parent) {
