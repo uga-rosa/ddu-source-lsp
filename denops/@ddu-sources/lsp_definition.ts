@@ -6,7 +6,7 @@ import { lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams } from "../ddu_source_lsp/params.ts";
 import { locationToItem } from "../ddu_source_lsp/util.ts";
-import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
+import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type Params = {
@@ -43,7 +43,7 @@ export class Source extends BaseSource<Params> {
           await makePositionParams(denops, ctx.bufNr, ctx.winId),
         );
         if (results) {
-          const items = definitionsToItems(results, { clientName, bufNr: ctx.bufNr, method });
+          const items = definitionsToItems(results, clientName, ctx.bufNr, method);
           controller.enqueue(items);
         }
         controller.close();
@@ -61,9 +61,11 @@ export class Source extends BaseSource<Params> {
 
 export function definitionsToItems(
   results: Results,
-  context: ItemContext,
+  clientName: ClientName,
+  bufNr: number,
+  method: Method,
 ): Item<ActionData>[] {
-  return results.flatMap((result) => {
+  return results.flatMap(({ result, clientId }) => {
     /**
      * References:
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_declaration
@@ -73,18 +75,12 @@ export function definitionsToItems(
      */
     const locations = result as Location | Location[] | LocationLink[];
 
+    const context = { clientName, bufNr, method, clientId };
+
     if (Array.isArray(locations)) {
-      return locations.map(locationToItem);
+      return locations.map((location) => locationToItem(location, context));
     } else {
-      return [locationToItem(locations)];
+      return [locationToItem(locations, context)];
     }
-  }).map((item) => {
-    return {
-      ...item,
-      action: {
-        ...item.action,
-        context,
-      },
-    };
   }).filter(isValidItem);
 }

@@ -4,7 +4,7 @@ import { deferred } from "https://deno.land/std@0.190.0/async/deferred.ts";
 import { deadline } from "https://deno.land/std@0.190.0/async/deadline.ts";
 import { ensureObject } from "https://deno.land/x/unknownutil@v2.1.1/ensure.ts";
 
-import { ClientName } from "./client.ts";
+import { ClientId, ClientName } from "./client.ts";
 import { asyncFlatMap } from "./util.ts";
 
 export const SUPPORTED_METHOD = [
@@ -34,7 +34,7 @@ export function isMethod(
 }
 
 /** Results per client */
-export type Results = unknown[];
+export type Results = { result: unknown; clientId: ClientId }[];
 
 export async function lspRequest(
   clientName: ClientName,
@@ -42,14 +42,15 @@ export async function lspRequest(
   bufNr: number,
   method: Method,
   params: unknown,
+  clientId?: ClientId,
 ): Promise<Results | null> {
   switch (clientName) {
     case "nvim-lsp":
-      return await nvimLspRequest(denops, bufNr, method, params);
+      return await nvimLspRequest(denops, bufNr, method, params, clientId);
     case "coc.nvim":
-      return await cocRequest(denops, bufNr, method, params);
+      return await cocRequest(denops, bufNr, method, params, clientId);
     case "vim-lsp":
-      return await vimLspRequest(denops, bufNr, method, params);
+      return await vimLspRequest(denops, bufNr, method, params, clientId);
     default:
       clientName satisfies never;
   }
@@ -61,12 +62,13 @@ async function nvimLspRequest(
   bufNr: number,
   method: Method,
   params: unknown,
+  clientId?: ClientId,
 ): Promise<Results | null> {
   const [ok, results] = await denops.call(
     `luaeval`,
-    `require('ddu_nvim_lsp').request(_A[1], _A[2], _A[3])`,
-    [bufNr, method, params],
-  ) as [boolean | null, unknown[]];
+    `require('ddu_nvim_lsp').request(_A[1], _A[2], _A[3], _A[4])`,
+    [bufNr, method, params, clientId ?? 0],
+  ) as [boolean | null, Results];
   if (!ok) {
     console.log(ok === null ? "No server attached" : `${method} is not supported by any of the servers`);
     return null;
@@ -85,12 +87,14 @@ async function cocRequest(
   bufNr: number,
   method: Method,
   params: unknown,
+  clientId?: ClientId,
 ): Promise<Results | null> {
   const services = await denops.call("CocAction", "services") as CocService[];
   const filetype = await fn.getbufvar(denops, bufNr, "&filetype") as string;
-  const activeServiceIds = services.filter((service) =>
-    service.state === "running" && service.languageIds.includes(filetype)
-  ).map((service) => service.id);
+  const activeServiceIds = services
+    .filter((service) => service.state === "running" && service.languageIds.includes(filetype))
+    .filter((service) => clientId === undefined || service.id === clientId)
+    .map((service) => service.id);
 
   if (activeServiceIds.length === 0) {
     console.log("No server attached");
@@ -101,7 +105,7 @@ async function cocRequest(
   const results = await asyncFlatMap(activeServiceIds, async (clientId) => {
     try {
       const result = await denops.call("CocRequest", clientId, method, params);
-      return result ? [result] : []
+      return result ? [{ result, clientId }] : [];
     } catch {
       errorCount++;
     }
@@ -120,11 +124,13 @@ async function vimLspRequest(
   bufNr: number,
   method: Method,
   params: unknown,
+  clientId?: ClientId,
 ): Promise<Results | null> {
-  const servers = await denops.call(
+  const allowedServers = await denops.call(
     `lsp#get_allowed_servers`,
     bufNr,
   ) as string[];
+  const servers = allowedServers.filter((server) => clientId === undefined || server === clientId);
   if (servers.length === 0) {
     console.log("No server attached");
     return null;
@@ -148,7 +154,7 @@ async function vimLspRequest(
       const { response } = ensureObject(resolvedData);
       const { result, error } = ensureObject(response);
       if (result) {
-        return [result];
+        return [{ result, clientId: server }];
       } else if (error) {
         errorCount++;
       }

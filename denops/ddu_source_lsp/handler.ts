@@ -23,5 +23,6 @@ export async function resolvePath(
     action.context.clientName,
     denops,
     action.context.bufNr,
+    action.context.clientId,
   );
 }

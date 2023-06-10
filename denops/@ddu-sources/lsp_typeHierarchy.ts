@@ -52,7 +52,9 @@ export class Source extends BaseSource<Params> {
           if (response) {
             return typeHierarchiesToItems(
               response,
-              { clientName, bufNr: ctx.bufNr, method },
+              clientName,
+              ctx.bufNr,
+              method,
             );
           }
         };
@@ -88,7 +90,7 @@ export class Source extends BaseSource<Params> {
             denops,
             ctx.bufNr,
             params,
-            { clientName, bufNr: ctx.bufNr, method },
+            method,
           );
           if (items && items.length > 0) {
             const resolvedItems = await Promise.all(items.map(peek));
@@ -121,7 +123,7 @@ async function prepareTypeHierarchy(
   denops: Denops,
   bufNr: number,
   params: TextDocumentPositionParams,
-  context: ItemContext,
+  method: Method,
 ): Promise<ItemHierarchy[] | undefined> {
   const response = await lspRequest(
     clientName,
@@ -131,23 +133,26 @@ async function prepareTypeHierarchy(
     params,
   );
   if (response) {
-    return response.flatMap((result) => {
+    return response.flatMap(({ result, clientId }) => {
       /**
        * Reference:
        * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_prepareTypeHierarchy
        */
       const typeHierarchyItems = result as TypeHierarchyItem[];
-      return typeHierarchyItems;
-    }).map((typeHierarchyItem) => typeHierarchyToItem(typeHierarchyItem, context))
-      .filter(isValidItem);
+
+      const context = { clientName, bufNr, method, clientId };
+      return typeHierarchyItems.map((typeHierarchyItem) => typeHierarchyToItem(typeHierarchyItem, context));
+    }).filter(isValidItem);
   }
 }
 
 function typeHierarchiesToItems(
   response: Results,
-  context: ItemContext,
+  clientName: ClientName,
+  bufNr: number,
+  method: Method,
 ): ItemHierarchy[] {
-  return response.flatMap((result) => {
+  return response.flatMap(({ result, clientId }) => {
     /**
      * References:
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#typeHierarchy_supertypes
@@ -155,6 +160,7 @@ function typeHierarchiesToItems(
      */
     const typeHierarchyItems = result as TypeHierarchyItem[];
 
+    const context = { clientName, bufNr, method, clientId };
     return typeHierarchyItems.map((typeHierarchyItem) => typeHierarchyToItem(typeHierarchyItem, context));
   });
 }

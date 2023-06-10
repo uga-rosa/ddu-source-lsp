@@ -2,11 +2,11 @@ import { BaseSource, Context, DduItem, Item, SourceOptions } from "https://deno.
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { Location, SymbolInformation, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { lspRequest, Results } from "../ddu_source_lsp/request.ts";
+import { lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName } from "../ddu_source_lsp/client.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
 import { KindName } from "./lsp_documentSymbol.ts";
-import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
+import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type Params = {
@@ -43,7 +43,7 @@ export class Source extends BaseSource<Params> {
           params,
         );
         if (results) {
-          const items = workspaceSymbolsToItems(results, { clientName, bufNr: ctx.bufNr, method });
+          const items = workspaceSymbolsToItems(results, clientName, ctx.bufNr, method);
           controller.enqueue(items);
         }
         controller.close();
@@ -61,15 +61,18 @@ export class Source extends BaseSource<Params> {
 
 function workspaceSymbolsToItems(
   response: Results,
-  context: ItemContext,
+  clientName: ClientName,
+  bufNr: number,
+  method: Method,
 ): Item<ActionData>[] {
-  return response.flatMap((result) => {
+  return response.flatMap(({ result, clientId }) => {
     /**
      * Reference:
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbol
      */
     const symbols = result as SymbolInformation[] | WorkspaceSymbol[];
 
+    const context = { clientName, bufNr, method, clientId };
     return symbols.map((symbol) => {
       const kindName = KindName[symbol.kind];
       const kind = `[${kindName}]`.padEnd(15, " ");
@@ -100,12 +103,13 @@ export async function resolveWorkspaceSymbol(
     action.context.bufNr,
     "workspaceSymbol/resolve",
     symbol,
+    action.context.clientId,
   );
   if (resolvedResults) {
     /**
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
      */
-    const workspaceSymbol = resolvedResults[0] as WorkspaceSymbol;
+    const workspaceSymbol = resolvedResults[0].result as WorkspaceSymbol;
     action.range = (workspaceSymbol.location as Location).range;
   }
 }

@@ -1,6 +1,7 @@
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+
 import { lspRequest } from "../request.ts";
-import { ClientName } from "../client.ts";
+import { ClientId, ClientName } from "../client.ts";
 
 export function isDenoUriWithFragment(uri: string) {
   /**
@@ -16,6 +17,7 @@ export async function createVirtualBuffer(
   clientName: ClientName,
   denops: Denops,
   bufNr: number,
+  clientId: ClientId,
 ) {
   if (!uri.startsWith("deno:")) {
     return;
@@ -34,9 +36,10 @@ export async function createVirtualBuffer(
     bufNr,
     "deno/virtualTextDocument",
     params,
+    clientId,
   );
   if (results) {
-    const lines = (results[0] as string).split("\n");
+    const lines = (results[0].result as string).split("\n");
     await fn.setbufline(denops, newBufNr, 1, lines);
     await fn.setbufvar(denops, newBufNr, "&swapfile", 0);
     await fn.setbufvar(denops, newBufNr, "&buftype", "nofile");

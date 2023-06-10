@@ -3,11 +3,16 @@ local M = {}
 ---@param bufNr integer
 ---@param method string
 ---@param params table
+---@param clientId integer Valid id is greater than 0
 ---@return table [ok, results]
 ---    - ok (boolean|nil): In the case of nil, no server is attached.
 ---    - results (unknown[]): The results per client.
-function M.request(bufNr, method, params)
-  local clients = vim.lsp.get_active_clients({ bufnr = bufNr })
+function M.request(bufNr, method, params, clientId)
+  local filter = { bufnr = bufNr }
+  if clientId > 0 then
+    filter.id = clientId
+  end
+  local clients = vim.lsp.get_active_clients(filter)
   if #clients == 0 then
     return { nil }
   end
@@ -18,12 +23,12 @@ function M.request(bufNr, method, params)
   end
 
   local results = {}
-  for _, responseMessage in pairs(response) do
+  for client_id, responseMessage in pairs(response) do
     -- https://microsoft.github.io/language-server-protocol/specifications/specification-current/#responseMessage
     local error, result = responseMessage.error, responseMessage.result
 
     if error == nil and result then
-      table.insert(results, result)
+      table.insert(results, { clientId = client_id, result = result })
     end
   end
   return { true, results }

@@ -2,11 +2,11 @@ import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { DocumentSymbol, SymbolInformation, SymbolKind } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { lspRequest, Results } from "../ddu_source_lsp/request.ts";
+import { lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName } from "../ddu_source_lsp/client.ts";
 import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
-import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
+import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type Params = {
@@ -42,8 +42,9 @@ export class Source extends BaseSource<Params> {
         if (results) {
           const items = documentSymbolsToItems(
             results,
+            clientName,
             ctx.bufNr,
-            { clientName, bufNr: ctx.bufNr, method },
+            method,
           );
           controller.enqueue(items);
         }
@@ -61,32 +62,36 @@ export class Source extends BaseSource<Params> {
 
 function documentSymbolsToItems(
   response: Results,
+  clientName: ClientName,
   bufNr: number,
-  context: ItemContext,
+  method: Method,
 ): Item<ActionData>[] {
-  const items = response.flatMap((result) => {
+  const items = response.flatMap(({ result, clientId }) => {
     /**
      * Reference:
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_documentSymbol
      */
     const symbols = result as DocumentSymbol[] | SymbolInformation[];
 
+    const context = { clientName, bufNr, method, clientId };
     return symbols.map((symbol) => {
       const kindName = KindName[symbol.kind];
       const kind = `[${kindName}]`.padEnd(15, " ");
+      const action = isSymbolInformation(symbol)
+        ? {
+          path: uriToPath(symbol.location.uri),
+          range: symbol.location.range,
+        }
+        : {
+          bufNr,
+          range: symbol.selectionRange,
+        };
       return {
         word: `${kind} ${symbol.name}`,
-        action: isSymbolInformation(symbol)
-          ? {
-            path: uriToPath(symbol.location.uri),
-            range: symbol.location.range,
-            context,
-          }
-          : {
-            bufNr,
-            range: symbol.selectionRange,
-            context,
-          },
+        action: {
+          ...action,
+          context,
+        },
         data: symbol,
       };
     });
@@ -99,7 +104,9 @@ function documentSymbolsToItems(
   return items;
 }
 
-function isSymbolInformation(symbol: SymbolInformation | DocumentSymbol): symbol is SymbolInformation {
+function isSymbolInformation(
+  symbol: SymbolInformation | DocumentSymbol,
+): symbol is SymbolInformation {
   return "location" in symbol;
 }
 

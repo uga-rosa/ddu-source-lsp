@@ -11,7 +11,7 @@ import { lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
-import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
+import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type ItemHierarchy = Omit<Item<ActionData>, "data"> & {
@@ -57,7 +57,9 @@ export class Source extends BaseSource<Params> {
             return callHierarchiesToItems(
               response,
               callHierarchyItem.uri,
-              { clientName, bufNr: ctx.bufNr, method },
+              clientName,
+              ctx.bufNr,
+              method,
             );
           }
         };
@@ -93,7 +95,7 @@ export class Source extends BaseSource<Params> {
             denops,
             ctx.bufNr,
             params,
-            { clientName, bufNr: ctx.bufNr, method },
+            method,
           );
           if (items && items.length > 0) {
             const resolvedItems = await Promise.all(items.map(peek));
@@ -126,7 +128,7 @@ async function prepareCallHierarchy(
   denops: Denops,
   bufNr: number,
   params: TextDocumentPositionParams,
-  context: ItemContext,
+  method: Method,
 ): Promise<ItemHierarchy[] | undefined> {
   const response = await lspRequest(
     clientName,
@@ -136,24 +138,26 @@ async function prepareCallHierarchy(
     params,
   );
   if (response) {
-    return response.flatMap((result) => {
+    return response.flatMap(({ result, clientId }) => {
       /**
        * Reference:
        * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_prepareCallHierarchy
        */
       const callHierarchyItems = result as CallHierarchyItem[];
-      return callHierarchyItems;
-    }).map((callHierarchyItem) => {
-      return {
-        word: callHierarchyItem.name,
-        action: {
-          path: uriToPath(callHierarchyItem.uri),
-          range: callHierarchyItem.range,
-          context,
-        },
-        treePath: `/${callHierarchyItem.name}`,
-        data: callHierarchyItem,
-      };
+
+      const context = { clientName, bufNr, method, clientId };
+      return callHierarchyItems.map((callHierarchyItem) => {
+        return {
+          word: callHierarchyItem.name,
+          action: {
+            path: uriToPath(callHierarchyItem.uri),
+            range: callHierarchyItem.range,
+            context,
+          },
+          treePath: `/${callHierarchyItem.name}`,
+          data: callHierarchyItem,
+        };
+      });
     }).filter(isValidItem);
   }
 }
@@ -161,9 +165,11 @@ async function prepareCallHierarchy(
 function callHierarchiesToItems(
   response: Results,
   parentUri: string,
-  context: ItemContext,
+  clientName: ClientName,
+  bufNr: number,
+  method: Method,
 ): ItemHierarchy[] {
-  return response.flatMap((result) => {
+  return response.flatMap(({ result, clientId }) => {
     /**
      * References:
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_incomingCalls
@@ -171,6 +177,7 @@ function callHierarchiesToItems(
      */
     const calls = result as CallHierarchyIncomingCall[] | CallHierarchyOutgoingCall[];
 
+    const context = { clientName, bufNr, method, clientId };
     return calls.flatMap((call) => {
       const linkItem = "from" in call ? call.from : call.to;
       const path = uriToPath("from" in call ? linkItem.uri : parentUri);
