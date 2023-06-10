@@ -109,8 +109,8 @@ export class Kind extends BaseKind<Params> {
     }) => {
       const { denops, context: ctx, actionParams, items } = args;
       const openParams = {
-        ...actionParams as OpenParams,
         ...defaultOpenParams,
+        ...actionParams as OpenParams,
       };
 
       // Add original location to jumplist
