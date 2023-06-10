@@ -4,16 +4,16 @@ local M = {}
 ---@param method string
 ---@param params table
 ---@return table [ok, results]
----    - ok: In the case of nil, no server is attached.
----    - results: {clientName, clientId, result}[]
+---    - ok (boolean|nil): In the case of nil, no server is attached.
+---    - results (unknown[]): The results per client.
 function M.request(bufNr, method, params)
   local clients = vim.lsp.get_active_clients({ bufnr = bufNr })
   if #clients == 0 then
     return { nil }
   end
 
-  local response = vim.lsp.buf_request_sync(bufNr, method, params)
-  if not response then
+  local ok, response = pcall(vim.lsp.buf_request_sync, bufNr, method, params)
+  if not ok then
     return { false }
   end
 
