@@ -13,23 +13,23 @@ export function isDenoUriWithFragment(uri: string) {
 }
 
 export async function createVirtualBuffer(
-  uri: string,
+  path: string,
   clientName: ClientName,
   denops: Denops,
   bufNr: number,
   clientId: ClientId,
 ) {
-  if (!uri.startsWith("deno:")) {
+  if (!path.startsWith("deno:")) {
     return;
   }
 
-  const newBufNr = await fn.bufadd(denops, uri);
+  const newBufNr = await fn.bufadd(denops, path);
   await fn.bufload(denops, newBufNr);
   if (!await isEmptyBuffer(denops, newBufNr)) {
     return;
   }
 
-  const params = { textDocument: { uri } };
+  const params = { textDocument: { uri: path } };
   const results = await lspRequest(
     clientName,
     denops,
