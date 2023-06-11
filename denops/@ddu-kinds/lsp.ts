@@ -56,9 +56,9 @@ export type ActionData =
   };
 
 export type ItemContext = {
+  client: Client;
   bufNr: number;
   method: Method;
-  client: Client;
 };
 
 async function getAction(

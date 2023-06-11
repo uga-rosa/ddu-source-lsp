@@ -74,7 +74,8 @@ function parseResult(
     return [];
   }
 
-  const context = { bufNr, method, client };
+  const context = { client, bufNr, method };
+
   return symbols
     .map((symbol) => {
       const kindName = KindName[symbol.kind];

@@ -76,7 +76,7 @@ function parseResult(
     return [];
   }
 
-  const context = { bufNr, method, client };
+  const context = { client, bufNr, method };
 
   return locations
     .map((location) => locationToItem(location, context))

@@ -29,13 +29,7 @@ export async function createVirtualBuffer(
   }
 
   const params = { textDocument: { uri: path } };
-  const result = await lspRequest(
-    denops,
-    client,
-    "deno/virtualTextDocument",
-    params,
-    bufNr,
-  );
+  const result = await lspRequest(denops, client, "deno/virtualTextDocument", params, bufNr);
   if (result) {
     const lines = (result as string).split("\n");
     await fn.setbufline(denops, newBufNr, 1, lines);

@@ -51,7 +51,7 @@ export class Source extends BaseSource<Params> {
           const client = parentItem.action.context.client;
           const result = await lspRequest(denops, client, method, { item: parent }, ctx.bufNr);
           if (result) {
-            const parentPath = uriToPath(parent.uri)
+            const parentPath = uriToPath(parent.uri);
             return callHierarchiesToItems(result, parentPath, client, ctx.bufNr, method);
           }
         };
@@ -124,13 +124,7 @@ async function prepareCallHierarchy(
   params: TextDocumentPositionParams,
   bufNr: number,
 ): Promise<ItemHierarchy[] | undefined> {
-  const result = await lspRequest(
-    denops,
-    client,
-    "textDocument/prepareCallHierarchy",
-    params,
-    bufNr,
-  );
+  const result = await lspRequest(denops, client, "textDocument/prepareCallHierarchy", params, bufNr);
   if (result) {
     /**
      * Reference:
@@ -177,11 +171,11 @@ function callHierarchiesToItems(
     return [];
   }
 
-  const context = { bufNr, method, client };
+  const context = { client, bufNr, method };
 
   return calls.flatMap((call) => {
     const linkItem = "from" in call ? call.from : call.to;
-    const path = "from" in call ? uriToPath(linkItem.uri) : parentPath
+    const path = "from" in call ? uriToPath(linkItem.uri) : parentPath;
     // const path = uriToPath(linkItem.uri);
 
     return call.fromRanges.map((range) => {
