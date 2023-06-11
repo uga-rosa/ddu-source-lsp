@@ -1,11 +1,10 @@
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { register, unregister } from "https://deno.land/x/denops_std@v5.0.0/lambda/mod.ts";
 import { deferred } from "https://deno.land/std@0.190.0/async/deferred.ts";
 import { deadline } from "https://deno.land/std@0.190.0/async/deadline.ts";
 import { ensureObject } from "https://deno.land/x/unknownutil@v2.1.1/ensure.ts";
 
-import { ClientId, ClientName } from "./client.ts";
-import { asyncFlatMap } from "./util.ts";
+import { Client } from "./client.ts";
 
 export const SUPPORTED_METHOD = [
   "textDocument/declaration",
@@ -35,140 +34,81 @@ export function isMethod(
   return SUPPORTED_METHOD.some((m) => method === m);
 }
 
-/** Results per client */
-export type Results = { result: unknown; clientId: ClientId }[];
+export type LspResult = unknown;
 
 export async function lspRequest(
-  clientName: ClientName,
   denops: Denops,
-  bufNr: number,
+  client: Client,
   method: Method,
   params: unknown,
-  clientId?: ClientId,
-): Promise<Results | undefined> {
-  if (clientName === "nvim-lsp") {
-    return await nvimLspRequest(denops, bufNr, method, params, clientId);
-  } else if (clientName === "coc.nvim") {
-    return await cocRequest(denops, bufNr, method, params, clientId);
-  } else if (clientName === "vim-lsp") {
-    return await vimLspRequest(denops, bufNr, method, params, clientId);
+  bufNr: number,
+): Promise<LspResult> {
+  if (client.name === "nvim-lsp") {
+    return await nvimLspRequest(denops, client, method, params, bufNr);
+  } else if (client.name === "coc.nvim") {
+    return await cocRequest(denops, client, method, params);
+  } else if (client.name === "vim-lsp") {
+    return await vimLspRequest(denops, client, method, params);
   } else {
-    clientName satisfies never;
+    client.name satisfies never;
+    throw new Error(`Unknown clientName: ${client.name}`);
   }
 }
 
 async function nvimLspRequest(
   denops: Denops,
-  bufNr: number,
+  client: Client,
   method: Method,
   params: unknown,
-  clientId?: ClientId,
-): Promise<Results | undefined> {
-  const [ok, results] = await denops.call(
+  bufNr: number,
+): Promise<LspResult> {
+  return await denops.call(
     `luaeval`,
     `require('ddu_nvim_lsp').request(_A[1], _A[2], _A[3], _A[4])`,
-    [bufNr, method, params, clientId ?? 0],
-  ) as [boolean | null, Results];
-  if (!ok) {
-    console.log(ok === null ? "No server attached" : `${method} is not supported by any of the servers`);
-    return;
-  }
-  return results;
+    [client.id, method, params, bufNr],
+  ) as LspResult;
 }
-
-type CocService = {
-  id: string;
-  state: string;
-  languageIds: string[];
-};
 
 async function cocRequest(
   denops: Denops,
-  bufNr: number,
+  client: Client,
   method: Method,
   params: unknown,
-  clientId?: ClientId,
-): Promise<Results | undefined> {
-  const services = await denops.call("CocAction", "services") as CocService[];
-  const filetype = await fn.getbufvar(denops, bufNr, "&filetype") as string;
-  const activeServiceIds = services
-    .filter((service) => service.state === "running" && service.languageIds.includes(filetype))
-    .filter((service) => clientId === undefined || service.id === clientId)
-    .map((service) => service.id);
-
-  if (activeServiceIds.length === 0) {
-    console.log("No server attached");
-    return;
+): Promise<LspResult> {
+  try {
+    return await denops.call("CocRequest", client.id, method, params);
+  } catch {
+    // Unsupported method
   }
-
-  let errorCount = 0;
-  const results = await asyncFlatMap(activeServiceIds, async (clientId) => {
-    try {
-      const result = await denops.call("CocRequest", clientId, method, params);
-      return result ? [{ result, clientId }] : [];
-    } catch {
-      errorCount++;
-    }
-    return [];
-  });
-  if (errorCount === activeServiceIds.length) {
-    console.log(`${method} is not supported by any of the servers`);
-    return;
-  }
-
-  return results;
+  return null;
 }
 
 async function vimLspRequest(
   denops: Denops,
-  bufNr: number,
+  client: Client,
   method: Method,
   params: unknown,
-  clientId?: ClientId,
-): Promise<Results | undefined> {
-  const allowedServers = await denops.call(
-    `lsp#get_allowed_servers`,
-    bufNr,
-  ) as string[];
-  const servers = allowedServers.filter((server) => clientId === undefined || server === clientId);
-  if (servers.length === 0) {
-    console.log("No server attached");
-    return;
+): Promise<LspResult> {
+  /**
+   * Original code is https://github.com/Milly/ddu-source-vimlsp
+   * Copyright (c) 2023 Milly
+   */
+  const data = deferred<unknown>();
+  const id = register(denops, (response: unknown) => data.resolve(response));
+  try {
+    await denops.eval(
+      `lsp#send_request(l:server, extend(l:request,` +
+        `{'on_notification': {data -> denops#notify(l:name, l:id, [data])}}))`,
+      { server: client.id, request: { method, params }, name: denops.name, id },
+    );
+    const resolvedData = await deadline(data, 5_000);
+    const { response } = ensureObject(resolvedData);
+    const { result } = ensureObject(response);
+    return result;
+  } catch {
+    console.log(`No response from server ${client.id}`);
+  } finally {
+    unregister(denops, id);
   }
-
-  let errorCount = 0;
-  const results: Results = await asyncFlatMap(servers, async (server) => {
-    /**
-     * Original code is https://github.com/Milly/ddu-source-vimlsp
-     * Copyright (c) 2023 Milly
-     */
-    const data = deferred<unknown>();
-    const id = register(denops, (response: unknown) => data.resolve(response));
-    try {
-      await denops.eval(
-        `lsp#send_request(l:server, extend(l:request,` +
-          `{'on_notification': {data -> denops#notify(l:name, l:id, [data])}}))`,
-        { server, request: { method, params }, name: denops.name, id },
-      );
-      const resolvedData = await deadline(data, 10_000);
-      const { response } = ensureObject(resolvedData);
-      const { result, error } = ensureObject(response);
-      if (result) {
-        return [{ result, clientId: server }];
-      } else if (error) {
-        errorCount++;
-      }
-    } catch {
-      console.log(`No response from server ${server}`);
-    } finally {
-      unregister(denops, id);
-    }
-    return [];
-  });
-  if (errorCount === servers.length) {
-    console.log(`${method} is not supported by any of the servers`);
-    return;
-  }
-
-  return results;
+  return null;
 }
