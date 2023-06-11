@@ -1,21 +1,21 @@
 import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 import {
   CallHierarchyIncomingCall,
   CallHierarchyItem,
   CallHierarchyOutgoingCall,
 } from "npm:vscode-languageserver-types@3.17.4-next.0";
-import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 
-import { lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
-import { ClientName } from "../ddu_source_lsp/client.ts";
+import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
+import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
-import { uriToPath } from "../ddu_source_lsp/util.ts";
+import { SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type ItemHierarchy = Omit<Item<ActionData>, "action" | "data"> & {
-  action: ActionData;
+  action: SomeRequired<ActionData, "path" | "range">;
   data: CallHierarchyItem & {
     children?: ItemHierarchy[];
   };
@@ -48,22 +48,11 @@ export class Source extends BaseSource<Params> {
       async start(controller) {
         const searchChildren = async (parentItem: ItemHierarchy) => {
           const parent = parentItem.data;
-          const response = await lspRequest(
-            clientName,
-            denops,
-            ctx.bufNr,
-            method,
-            { item: parent },
-            parentItem.action.context.clientId,
-          );
-          if (response) {
-            return callHierarchiesToItems(
-              response,
-              parent.uri,
-              clientName,
-              ctx.bufNr,
-              method,
-            );
+          const client = parentItem.action.context.client;
+          const result = await lspRequest(denops, client, method, { item: parent }, ctx.bufNr);
+          if (result) {
+            const parentPath = uriToPath(parent.uri)
+            return callHierarchiesToItems(result, parentPath, client, ctx.bufNr, method);
           }
         };
 
@@ -84,34 +73,37 @@ export class Source extends BaseSource<Params> {
           return parentItem;
         };
 
-        if (args.parent) {
-          // called from expandItem
-          if (isLike({ data: { children: [] } }, args.parent)) {
-            const resolvedChildren = await Promise.all(args.parent.data.children.map(peek));
-            controller.enqueue(resolvedChildren);
-          }
-        } else {
-          const params = await makePositionParams(denops, ctx.bufNr, ctx.winId);
-          const items = await prepareCallHierarchy(
-            clientName,
-            denops,
-            ctx.bufNr,
-            params,
-            method,
-          );
-          if (items && items.length > 0) {
-            const resolvedItems = await Promise.all(items.map(peek));
-            controller.enqueue(resolvedItems);
-            if (autoExpandSingle && items.length === 1 && items[0].data.children) {
-              items[0].isExpanded = true;
-              const children = await Promise.all(items[0].data.children.map(peek));
-              children.forEach((child) => child.level = 1);
-              controller.enqueue(children);
+        try {
+          if (args.parent) {
+            // called from expandItem
+            if (isLike({ data: { children: [] } }, args.parent)) {
+              const resolvedChildren = await Promise.all(args.parent.data.children.map(peek));
+              controller.enqueue(resolvedChildren);
             }
-          }
-        }
+          } else {
+            const clients = await getClients(denops, clientName, ctx.bufNr);
 
-        controller.close();
+            await Promise.all(clients.map(async (client) => {
+              const params = await makePositionParams(denops, ctx.bufNr, ctx.winId, client.encoding);
+              const items = await prepareCallHierarchy(denops, client, method, params, ctx.bufNr);
+              if (items && items.length > 0) {
+                const resolvedItems = await Promise.all(items.map(peek));
+                controller.enqueue(resolvedItems);
+
+                if (autoExpandSingle && items.length === 1 && items[0].data.children) {
+                  items[0].isExpanded = true;
+                  const children = await Promise.all(items[0].data.children.map(peek));
+                  children.forEach((child) => child.level = 1);
+                  controller.enqueue(children);
+                }
+              }
+            }));
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          controller.close();
+        }
       },
     });
   }
@@ -126,29 +118,33 @@ export class Source extends BaseSource<Params> {
 }
 
 async function prepareCallHierarchy(
-  clientName: ClientName,
   denops: Denops,
-  bufNr: number,
-  params: TextDocumentPositionParams,
+  client: Client,
   method: Method,
+  params: TextDocumentPositionParams,
+  bufNr: number,
 ): Promise<ItemHierarchy[] | undefined> {
-  const response = await lspRequest(
-    clientName,
+  const result = await lspRequest(
     denops,
-    bufNr,
+    client,
     "textDocument/prepareCallHierarchy",
     params,
+    bufNr,
   );
-  if (response) {
-    return response.flatMap(({ result, clientId }) => {
-      /**
-       * Reference:
-       * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_prepareCallHierarchy
-       */
-      const callHierarchyItems = result as CallHierarchyItem[];
+  if (result) {
+    /**
+     * Reference:
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_prepareCallHierarchy
+     */
+    const callHierarchyItems = result as CallHierarchyItem[] | null;
+    if (!callHierarchyItems) {
+      return;
+    }
 
-      const context = { clientName, bufNr, method, clientId };
-      return callHierarchyItems.map((callHierarchyItem) => {
+    const context = { bufNr, method, client };
+
+    return callHierarchyItems
+      .map((callHierarchyItem) => {
         return {
           word: callHierarchyItem.name,
           action: {
@@ -159,39 +155,42 @@ async function prepareCallHierarchy(
           treePath: `/${callHierarchyItem.name}`,
           data: callHierarchyItem,
         };
-      });
-    }).filter(isValidItem);
+      })
+      .filter(isValidItem);
   }
 }
 
 function callHierarchiesToItems(
-  response: Results,
-  parentUri: string,
-  clientName: ClientName,
+  result: LspResult,
+  parentPath: string,
+  client: Client,
   bufNr: number,
   method: Method,
 ): ItemHierarchy[] {
-  return response.flatMap(({ result, clientId }) => {
-    /**
-     * References:
-     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_incomingCalls
-     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_outgoingCalls
-     */
-    const calls = result as CallHierarchyIncomingCall[] | CallHierarchyOutgoingCall[];
+  /**
+   * References:
+   * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_incomingCalls
+   * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_outgoingCalls
+   */
+  const calls = result as CallHierarchyIncomingCall[] | CallHierarchyOutgoingCall[] | null;
+  if (!calls) {
+    return [];
+  }
 
-    const context = { clientName, bufNr, method, clientId };
-    return calls.flatMap((call) => {
-      const linkItem = "from" in call ? call.from : call.to;
-      const path = uriToPath("from" in call ? linkItem.uri : parentUri);
+  const context = { bufNr, method, client };
 
-      return call.fromRanges.map((range) => {
-        return {
-          word: linkItem.name,
-          display: `${linkItem.name}:${range.start.line + 1}:${range.start.character + 1}`,
-          action: { path, range, context },
-          data: linkItem,
-        };
-      });
+  return calls.flatMap((call) => {
+    const linkItem = "from" in call ? call.from : call.to;
+    const path = "from" in call ? uriToPath(linkItem.uri) : parentPath
+    // const path = uriToPath(linkItem.uri);
+
+    return call.fromRanges.map((range) => {
+      return {
+        word: linkItem.name,
+        display: `${linkItem.name}:${range.start.line + 1}:${range.start.character + 1}`,
+        action: { path, range, context },
+        data: linkItem,
+      };
     });
   });
 }
