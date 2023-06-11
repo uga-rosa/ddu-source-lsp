@@ -57,9 +57,9 @@ function byteLength(str: string) {
 export function toUtfIndex(
   line: string,
   index: number,
-  encodeing: Encoding = "utf-16",
+  encoding: Encoding = "utf-16",
 ): number {
-  if (encodeing === "utf-8") {
+  if (encoding === "utf-8") {
     if (index) {
       return index;
     } else {
@@ -67,13 +67,13 @@ export function toUtfIndex(
     }
   } else {
     const { utf32Index, utf16Index } = str_utfindex(line, index);
-    if (encodeing === "utf-16") {
+    if (encoding === "utf-16") {
       return utf16Index;
-    } else if (encodeing === "utf-32") {
+    } else if (encoding === "utf-32") {
       return utf32Index;
     } else {
-      encodeing satisfies never;
-      throw new Error(`Invalid encodeing: ${encodeing}`);
+      encoding satisfies never;
+      throw new Error(`Invalid encoding: ${encoding}`);
     }
   }
 }
@@ -81,22 +81,22 @@ export function toUtfIndex(
 export function fromUtfIndex(
   line: string,
   index: number,
-  encodeing: Encoding = "utf-16",
+  encoding: Encoding = "utf-16",
 ): number {
-  if (encodeing === "utf-8") {
+  if (encoding === "utf-8") {
     if (index) {
       return index;
     } else {
       return byteLength(line);
     }
   } else {
-    if (encodeing === "utf-16") {
+    if (encoding === "utf-16") {
       return str_byteindex(line, index, true);
-    } else if (encodeing === "utf-32") {
+    } else if (encoding === "utf-32") {
       return str_byteindex(line, index);
     } else {
-      encodeing satisfies never;
-      throw new Error(`Invalid encodeing ${encodeing}`);
+      encoding satisfies never;
+      throw new Error(`Invalid encoding ${encoding}`);
     }
   }
 }

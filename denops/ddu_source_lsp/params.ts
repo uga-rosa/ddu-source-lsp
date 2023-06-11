@@ -23,11 +23,11 @@ export async function makePositionParams(
   denops: Denops,
   bufNr: number,
   winId: number,
-  encodeing?: Encoding,
+  encoding?: Encoding,
 ): Promise<TextDocumentPositionParams> {
   const [_, lnum, byteCol] = await fn.getcurpos(denops, winId) as number[];
   const line = (await fn.getbufline(denops, bufNr, lnum))[0] ?? "";
-  const character = toUtfIndex(line, byteCol - 1, encodeing);
+  const character = toUtfIndex(line, byteCol - 1, encoding);
   const position: Position = {
     line: lnum - 1,
     character,
@@ -59,10 +59,10 @@ export async function makeCodeActionParams(
   denops: Denops,
   bufNr: number,
   winId: number,
-  encodeing?: Encoding,
+  encoding?: Encoding,
 ): Promise<CodeActionParams> {
   const textDocument = await makeTextDocumentIdentifier(denops, bufNr);
-  const range = await getSelectionRange(denops, bufNr, winId, encodeing);
+  const range = await getSelectionRange(denops, bufNr, winId, encoding);
   const diagnostics = await getProperDiagnostics(clilentName, denops, bufNr);
 
   return {
@@ -76,7 +76,7 @@ async function getSelectionRange(
   denops: Denops,
   bufNr: number,
   winId: number,
-  encodeing?: Encoding,
+  encoding?: Encoding,
 ): Promise<Range> {
   const mode = await fn.mode(denops);
   if (mode === "v" || mode === "V") {
@@ -96,11 +96,11 @@ async function getSelectionRange(
     return {
       start: {
         line: startByte.lnum - 1,
-        character: mode === "V" ? 0 : toUtfIndex(startLine, startByte.col - 1, encodeing),
+        character: mode === "V" ? 0 : toUtfIndex(startLine, startByte.col - 1, encoding),
       },
       end: {
         line: endByte.lnum - 1,
-        character: toUtfIndex(endLine, mode === "V" ? -1 : endByte.col - 1, encodeing),
+        character: toUtfIndex(endLine, mode === "V" ? -1 : endByte.col - 1, encoding),
       },
     };
   } else {
