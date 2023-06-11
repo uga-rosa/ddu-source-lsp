@@ -68,21 +68,15 @@ async function getDiagnostic(
   denops: Denops,
   bufNr: number | null,
 ): Promise<DduDiagnostic[] | undefined> {
-  switch (clientName) {
-    case "nvim-lsp": {
-      return await getNvimLspDiagnostics(denops, bufNr);
-    }
-    case "coc.nvim": {
-      return await getCocDiagnostics(denops, bufNr);
-    }
-    case "vim-lsp": {
-      return await getVimLspDiagnostics(denops, bufNr);
-    }
-    default: {
-      clientName satisfies never;
-    }
+  if (clientName === "nvim-lsp") {
+    return await getNvimLspDiagnostics(denops, bufNr);
+  } else if (clientName === "coc.nvim") {
+    return await getCocDiagnostics(denops, bufNr);
+  } else if (clientName === "vim-lsp") {
+    return await getVimLspDiagnostics(denops, bufNr);
+  } else {
+    clientName satisfies never;
   }
-  return [];
 }
 
 type NvimLspDiagnostic = Pick<Diagnostic, "message" | "severity" | "source" | "code"> & {

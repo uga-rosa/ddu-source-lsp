@@ -46,17 +46,15 @@ export async function lspRequest(
   params: unknown,
   clientId?: ClientId,
 ): Promise<Results | undefined> {
-  switch (clientName) {
-    case "nvim-lsp":
-      return await nvimLspRequest(denops, bufNr, method, params, clientId);
-    case "coc.nvim":
-      return await cocRequest(denops, bufNr, method, params, clientId);
-    case "vim-lsp":
-      return await vimLspRequest(denops, bufNr, method, params, clientId);
-    default:
-      clientName satisfies never;
+  if (clientName === "nvim-lsp") {
+    return await nvimLspRequest(denops, bufNr, method, params, clientId);
+  } else if (clientName === "coc.nvim") {
+    return await cocRequest(denops, bufNr, method, params, clientId);
+  } else if (clientName === "vim-lsp") {
+    return await vimLspRequest(denops, bufNr, method, params, clientId);
+  } else {
+    clientName satisfies never;
   }
-  return null;
 }
 
 async function nvimLspRequest(
