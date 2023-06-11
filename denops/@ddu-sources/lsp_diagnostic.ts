@@ -63,7 +63,7 @@ type DduDiagnostic = Diagnostic & {
   path?: string;
 };
 
-async function getDiagnostic(
+export async function getDiagnostic(
   clientName: ClientName,
   denops: Denops,
   bufNr: number | null,
