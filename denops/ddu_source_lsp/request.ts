@@ -45,7 +45,7 @@ export async function lspRequest(
   method: Method,
   params: unknown,
   clientId?: ClientId,
-): Promise<Results | null> {
+): Promise<Results | undefined> {
   switch (clientName) {
     case "nvim-lsp":
       return await nvimLspRequest(denops, bufNr, method, params, clientId);
@@ -65,7 +65,7 @@ async function nvimLspRequest(
   method: Method,
   params: unknown,
   clientId?: ClientId,
-): Promise<Results | null> {
+): Promise<Results | undefined> {
   const [ok, results] = await denops.call(
     `luaeval`,
     `require('ddu_nvim_lsp').request(_A[1], _A[2], _A[3], _A[4])`,
@@ -73,7 +73,7 @@ async function nvimLspRequest(
   ) as [boolean | null, Results];
   if (!ok) {
     console.log(ok === null ? "No server attached" : `${method} is not supported by any of the servers`);
-    return null;
+    return;
   }
   return results;
 }
@@ -90,7 +90,7 @@ async function cocRequest(
   method: Method,
   params: unknown,
   clientId?: ClientId,
-): Promise<Results | null> {
+): Promise<Results | undefined> {
   const services = await denops.call("CocAction", "services") as CocService[];
   const filetype = await fn.getbufvar(denops, bufNr, "&filetype") as string;
   const activeServiceIds = services
@@ -100,7 +100,7 @@ async function cocRequest(
 
   if (activeServiceIds.length === 0) {
     console.log("No server attached");
-    return null;
+    return;
   }
 
   let errorCount = 0;
@@ -115,7 +115,7 @@ async function cocRequest(
   });
   if (errorCount === activeServiceIds.length) {
     console.log(`${method} is not supported by any of the servers`);
-    return null;
+    return;
   }
 
   return results;
@@ -127,7 +127,7 @@ async function vimLspRequest(
   method: Method,
   params: unknown,
   clientId?: ClientId,
-): Promise<Results | null> {
+): Promise<Results | undefined> {
   const allowedServers = await denops.call(
     `lsp#get_allowed_servers`,
     bufNr,
@@ -135,7 +135,7 @@ async function vimLspRequest(
   const servers = allowedServers.filter((server) => clientId === undefined || server === clientId);
   if (servers.length === 0) {
     console.log("No server attached");
-    return null;
+    return;
   }
 
   let errorCount = 0;
@@ -169,7 +169,7 @@ async function vimLspRequest(
   });
   if (errorCount === servers.length) {
     console.log(`${method} is not supported by any of the servers`);
-    return null;
+    return;
   }
 
   return results;
