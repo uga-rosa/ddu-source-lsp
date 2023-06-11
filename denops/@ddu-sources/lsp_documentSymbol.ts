@@ -1,6 +1,6 @@
 import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { DocumentSymbol, SymbolInformation, SymbolKind } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import { DocumentSymbol, SymbolInformation } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
@@ -8,6 +8,7 @@ import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
 import { uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
+import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
 
 type Params = {
   clientName: ClientName;
@@ -106,34 +107,3 @@ function isSymbolInformation(
 ): symbol is SymbolInformation {
   return "location" in symbol;
 }
-
-export const KindName = {
-  1: "File",
-  2: "Module",
-  3: "Namespace",
-  4: "Package",
-  5: "Class",
-  6: "Method",
-  7: "Property",
-  8: "Field",
-  9: "Constructor",
-  10: "Enum",
-  11: "Interface",
-  12: "Function",
-  13: "Variable",
-  14: "Constant",
-  15: "String",
-  16: "Number",
-  17: "Boolean",
-  18: "Array",
-  19: "Object",
-  20: "Key",
-  21: "Null",
-  22: "EnumMember",
-  23: "Struct",
-  24: "Event",
-  25: "Operator",
-  26: "TypeParameter",
-} as const satisfies Record<SymbolKind, string>;
-
-export type KindName = typeof KindName[keyof typeof KindName];
