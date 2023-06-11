@@ -4,7 +4,6 @@ import {
   CodeAction,
   CodeActionContext,
   Command,
-  Diagnostic,
   Position,
   Range,
   TextDocumentIdentifier,
@@ -14,7 +13,7 @@ import { lspRequest, Results } from "../ddu_source_lsp/request.ts";
 import { ClientName } from "../ddu_source_lsp/client.ts";
 import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
 import { ActionData } from "../@ddu-kinds/lsp_codeAction.ts";
-import { getDiagnostic } from "./lsp_diagnostic.ts";
+import { getProperDiagnostics } from "./lsp_diagnostic.ts";
 
 type Params = {
   clientName: ClientName;
@@ -72,12 +71,7 @@ async function makeCodeActionParams(
 ): Promise<CodeActionParams> {
   const textDocument = await makeTextDocumentIdentifier(denops, bufNr);
   const range = await getSelectionRange(denops, bufNr, winId);
-  const dduDiagnostics = await getDiagnostic(clilentName, denops, bufNr);
-  const diagnostics: Diagnostic[] | undefined = dduDiagnostics?.map((diag) => {
-    diag.bufNr = undefined;
-    diag.path = undefined;
-    return diag;
-  });
+  const diagnostics = await getProperDiagnostics(clilentName, denops, bufNr);
 
   return {
     textDocument,

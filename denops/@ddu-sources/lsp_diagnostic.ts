@@ -63,7 +63,31 @@ type DduDiagnostic = Diagnostic & {
   path?: string;
 };
 
-export async function getDiagnostic(
+/**
+ * Each client may be adding invalid fields on its own, so filter them out.
+ */
+export async function getProperDiagnostics(
+  clientName: ClientName,
+  denops: Denops,
+  bufNr: number | null,
+): Promise<Diagnostic[]> {
+  const dduDiagnostics = await getDiagnostic(clientName, denops, bufNr);
+  return dduDiagnostics?.map((diag) => {
+    return {
+      range: diag.range,
+      severity: diag.severity,
+      code: diag.code,
+      codeDescription: diag.codeDescription,
+      source: diag.source,
+      message: diag.message,
+      tags: diag.tags,
+      relatedInformation: diag.relatedInformation,
+      data: diag.data,
+    };
+  }) ?? [];
+}
+
+async function getDiagnostic(
   clientName: ClientName,
   denops: Denops,
   bufNr: number | null,
