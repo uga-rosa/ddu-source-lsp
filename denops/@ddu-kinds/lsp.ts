@@ -36,6 +36,7 @@ import {
   Previewer,
 } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { existsSync } from "https://deno.land/std@0.191.0/fs/mod.ts"
 import { Range, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { asyncFlatMap } from "../ddu_source_lsp/util.ts";
@@ -209,7 +210,7 @@ export class Kind extends BaseKind<Params> {
 
     const param = args.actionParams as PreviewOption;
 
-    if (param.previewCmds?.length && action.path && isFile(action.path)) {
+    if (param.previewCmds?.length && action.path && existsSync(action.path)) {
       const previewHeight = args.previewContext.height;
       let startLine = 0;
       let lineNr = 0;
@@ -273,14 +274,5 @@ export class Kind extends BaseKind<Params> {
 
   override params(): Params {
     return {};
-  }
-}
-
-function isFile(path: string) {
-  try {
-    const stat = Deno.statSync(path);
-    return stat.isFile;
-  } catch {
-    return false;
   }
 }
