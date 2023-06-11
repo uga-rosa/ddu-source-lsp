@@ -39,7 +39,7 @@ import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { existsSync } from "https://deno.land/std@0.191.0/fs/mod.ts";
 import { Range, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { asyncFlatMap } from "../ddu_source_lsp/util.ts";
+import { asyncFlatMap, fromUtfIndex } from "../ddu_source_lsp/util.ts";
 import { Client } from "../ddu_source_lsp/client.ts";
 import { Method } from "../ddu_source_lsp/request.ts";
 import { resolvePath } from "../ddu_source_lsp/handler.ts";
@@ -53,6 +53,9 @@ export type ActionData =
   & {
     range?: Range;
     context: ItemContext;
+    // For cache. It will not exist until it is resolved.
+    lnum?: number;
+    col?: number;
   };
 
 export type ItemContext = {
@@ -72,6 +75,11 @@ async function getAction(
   await resolvePath(denops, action);
   if (action.context.method === "workspace/symbol") {
     await resolveWorkspaceSymbol(denops, action, item.data as WorkspaceSymbol);
+  }
+  if (action.range && !action.lnum) {
+    action.lnum = action.range.start.line + 1;
+    const line = (await fn.getbufline(denops, action.context.bufNr, action.lnum))[0] ?? "";
+    action.col = fromUtfIndex(line, action.range.start.character, action.context.client.encoding) + 1;
   }
   return action;
 }
@@ -152,11 +160,10 @@ export class Kind extends BaseKind<Params> {
           );
         }
 
-        if (action.range) {
-          const { line, character } = action.range.start;
-          const [lineNr, col] = [line + 1, character + 1];
+        if (action.lnum && action.col) {
+          const { lnum, col } = action;
 
-          await fn.cursor(denops, lineNr, col);
+          await fn.cursor(denops, lnum, col);
         }
 
         // Note: Open folds and centering
@@ -175,11 +182,12 @@ export class Kind extends BaseKind<Params> {
       const qfloclist: QuickFix[] = await asyncFlatMap(items, async (item) => {
         const action = await getAction(denops, item);
         if (action) {
+          const { lnum, col } = action;
           return {
             bufnr: action.bufNr,
             filename: action.path,
-            lnum: action.range ? action.range.start.line + 1 : undefined,
-            col: action.range ? action.range.start.character + 1 : undefined,
+            lnum,
+            col,
             text: item.word,
           };
         } else {
@@ -187,7 +195,7 @@ export class Kind extends BaseKind<Params> {
         }
       });
 
-      if (qfloclist.length !== 0) {
+      if (qfloclist.length > 0) {
         await fn.setqflist(denops, qfloclist);
         await denops.cmd("copen");
       }
@@ -267,7 +275,7 @@ export class Kind extends BaseKind<Params> {
       kind: "buffer",
       expr: action.bufNr,
       path: action.path,
-      lineNr: action.range ? action.range.start.line + 1 : undefined,
+      lineNr: action.lnum,
     };
   }
 
