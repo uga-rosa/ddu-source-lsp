@@ -76,7 +76,6 @@ export function definitionsToItems(
     const locations = result as Location | Location[] | LocationLink[];
 
     const context = { clientName, bufNr, method, clientId };
-
     if (Array.isArray(locations)) {
       return locations.map((location) => locationToItem(location, context));
     } else {
