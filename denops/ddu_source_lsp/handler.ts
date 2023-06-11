@@ -19,10 +19,9 @@ export async function resolvePath(
     return;
   }
   await createVirtualBuffer(
-    action.path,
-    action.context.clientName,
     denops,
+    action.path,
+    action.context.client,
     action.context.bufNr,
-    action.context.clientId,
   );
 }

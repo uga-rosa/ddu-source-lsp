@@ -1,7 +1,7 @@
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 
 import { lspRequest } from "../request.ts";
-import { ClientId, ClientName } from "../client.ts";
+import { Client } from "../client.ts";
 
 export function isDenoUriWithFragment(uri: string) {
   /**
@@ -13,11 +13,10 @@ export function isDenoUriWithFragment(uri: string) {
 }
 
 export async function createVirtualBuffer(
-  path: string,
-  clientName: ClientName,
   denops: Denops,
+  path: string,
+  client: Client,
   bufNr: number,
-  clientId: ClientId,
 ) {
   if (!path.startsWith("deno:")) {
     return;
@@ -30,29 +29,24 @@ export async function createVirtualBuffer(
   }
 
   const params = { textDocument: { uri: path } };
-  const results = await lspRequest(
-    clientName,
+  const result = await lspRequest(
     denops,
-    bufNr,
+    client,
     "deno/virtualTextDocument",
     params,
-    clientId,
+    bufNr,
   );
-  if (results) {
-    const lines = (results[0].result as string).split("\n");
+  if (result) {
+    const lines = (result as string).split("\n");
     await fn.setbufline(denops, newBufNr, 1, lines);
     await fn.setbufvar(denops, newBufNr, "&swapfile", 0);
     await fn.setbufvar(denops, newBufNr, "&buftype", "nofile");
     await fn.setbufvar(denops, newBufNr, "&modified", 0);
     await fn.setbufvar(denops, newBufNr, "&modifiable", 0);
-    if (clientName === "nvim-lsp") {
-      const clientId = await denops.call(
-        `luaeval`,
-        `require('ddu_nvim_lsp').get_client_id_by_name('denols')`,
-      );
+    if (client.name === "nvim-lsp") {
       await denops.call(
         `luaeval`,
-        `vim.lsp.buf_attach_client(${newBufNr}, ${clientId})`,
+        `vim.lsp.buf_attach_client(${newBufNr}, ${client.id})`,
       );
     }
   }
