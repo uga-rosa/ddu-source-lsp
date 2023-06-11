@@ -15,7 +15,7 @@ export async function makePositionParams(
   bufNr: number,
   winId: number,
 ): Promise<TextDocumentPositionParams> {
-  const [_, lnum, col] = await fn.getcurpos(denops, winId);
+  const [_, lnum, col] = await fn.getcursorcharpos(denops, winId) as number[];
   const position: Position = {
     // 1-index to 0-index
     line: lnum - 1,
