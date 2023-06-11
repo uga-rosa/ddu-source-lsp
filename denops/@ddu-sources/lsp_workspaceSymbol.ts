@@ -102,18 +102,18 @@ export async function resolveWorkspaceSymbol(
     return;
   }
 
-  const resolvedResult = await lspRequest(
+  const resolvedSymbol = await lspRequest(
     denops,
     action.context.client,
     "workspaceSymbol/resolve",
     symbol,
     action.context.bufNr,
   );
-  if (resolvedResult) {
+  if (resolvedSymbol) {
     /**
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
      */
-    const workspaceSymbol = resolvedResult as WorkspaceSymbol;
+    const workspaceSymbol = resolvedSymbol as WorkspaceSymbol;
     action.range = (workspaceSymbol.location as Location).range;
   }
 }

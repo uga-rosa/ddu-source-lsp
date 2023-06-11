@@ -26,7 +26,7 @@ export async function makePositionParams(
   encodeing?: Encoding,
 ): Promise<TextDocumentPositionParams> {
   const [_, lnum, byteCol] = await fn.getcurpos(denops, winId) as number[];
-  const line = (await fn.getbufline(denops, bufNr, lnum))[0];
+  const line = (await fn.getbufline(denops, bufNr, lnum))[0] ?? "";
   const character = toUtfIndex(line, byteCol - 1, encodeing);
   const position: Position = {
     line: lnum - 1,
