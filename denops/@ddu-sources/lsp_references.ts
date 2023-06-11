@@ -30,7 +30,7 @@ export class Source extends BaseSource<Params> {
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
     const { clientName, includeDeclaration } = sourceParams;
-    const method = "textDocument/references";
+    const method: Method = "textDocument/references";
 
     return new ReadableStream({
       async start(controller) {

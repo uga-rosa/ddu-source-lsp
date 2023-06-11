@@ -27,7 +27,7 @@ export class Source extends BaseSource<Params> {
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceOptions, sourceParams, context: ctx } = args;
     const { clientName, query } = sourceParams;
-    const method = "workspace/symbol";
+    const method: Method = "workspace/symbol";
 
     return new ReadableStream({
       async start(controller) {
