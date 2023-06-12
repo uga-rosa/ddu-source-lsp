@@ -39,11 +39,12 @@ import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { existsSync } from "https://deno.land/std@0.191.0/fs/mod.ts";
 import { Range, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { asyncFlatMap, fromUtfIndex } from "../ddu_source_lsp/util.ts";
+import { asyncFlatMap } from "../ddu_source_lsp/util.ts";
 import { Client } from "../ddu_source_lsp/client.ts";
 import { Method } from "../ddu_source_lsp/request.ts";
 import { resolvePath } from "../ddu_source_lsp/handler.ts";
 import { resolveWorkspaceSymbol } from "../@ddu-sources/lsp_workspaceSymbol.ts";
+import { decodeUtfIndex } from "../ddu_source_lsp/offset_encoding.ts";
 
 export type ActionData =
   & (
@@ -79,7 +80,7 @@ async function getAction(
   if (action.range && !action.lnum) {
     action.lnum = action.range.start.line + 1;
     const line = (await fn.getbufline(denops, action.context.bufNr, action.lnum))[0] ?? "";
-    action.col = fromUtfIndex(line, action.range.start.character, action.context.client.encoding) + 1;
+    action.col = decodeUtfIndex(line, action.range.start.character, action.context.client.offsetEncoding) + 1;
   }
   return action;
 }

@@ -8,9 +8,8 @@ import {
 
 import { getProperDiagnostics } from "../@ddu-sources/lsp_diagnostic.ts";
 import { ClientName } from "./client.ts";
-import { bufNrToFileUri, toUtfIndex } from "./util.ts";
-
-export type Encoding = "utf-8" | "utf-16" | "utf-32";
+import { encodeUtfIndex, OffsetEncoding } from "./offset_encoding.ts";
+import { bufNrToFileUri } from "./util.ts";
 
 export type TextDocumentPositionParams = {
   /** The text document. */
@@ -23,11 +22,11 @@ export async function makePositionParams(
   denops: Denops,
   bufNr: number,
   winId: number,
-  encoding?: Encoding,
+  offsetEncoding?: OffsetEncoding,
 ): Promise<TextDocumentPositionParams> {
   const [_, lnum, byteCol] = await fn.getcurpos(denops, winId) as number[];
   const line = (await fn.getbufline(denops, bufNr, lnum))[0] ?? "";
-  const character = toUtfIndex(line, byteCol - 1, encoding);
+  const character = encodeUtfIndex(line, byteCol - 1, offsetEncoding);
   const position: Position = {
     line: lnum - 1,
     character,
@@ -59,10 +58,10 @@ export async function makeCodeActionParams(
   denops: Denops,
   bufNr: number,
   winId: number,
-  encoding?: Encoding,
+  offsetEncoding?: OffsetEncoding,
 ): Promise<CodeActionParams> {
   const textDocument = await makeTextDocumentIdentifier(denops, bufNr);
-  const range = await getSelectionRange(denops, bufNr, winId, encoding);
+  const range = await getSelectionRange(denops, bufNr, winId, offsetEncoding);
   const diagnostics = await getProperDiagnostics(clilentName, denops, bufNr);
 
   return {
@@ -76,7 +75,7 @@ async function getSelectionRange(
   denops: Denops,
   bufNr: number,
   winId: number,
-  encoding?: Encoding,
+  offsetEncoding?: OffsetEncoding,
 ): Promise<Range> {
   const mode = await fn.mode(denops);
   if (mode === "v" || mode === "V") {
@@ -96,11 +95,11 @@ async function getSelectionRange(
     return {
       start: {
         line: startByte.lnum - 1,
-        character: mode === "V" ? 0 : toUtfIndex(startLine, startByte.col - 1, encoding),
+        character: mode === "V" ? 0 : encodeUtfIndex(startLine, startByte.col - 1, offsetEncoding),
       },
       end: {
         line: endByte.lnum - 1,
-        character: toUtfIndex(endLine, mode === "V" ? -1 : endByte.col - 1, encoding),
+        character: encodeUtfIndex(endLine, mode === "V" ? -1 : endByte.col - 1, offsetEncoding),
       },
     };
   } else {

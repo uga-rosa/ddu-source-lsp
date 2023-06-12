@@ -47,7 +47,7 @@ export function encodeUtfIndex(
       return utf32Index;
     } else {
       offsetEncoding satisfies never;
-      throw new Error(`Invalid encoding: ${offsetEncoding}`);
+      throw new Error(`Invalid offset encoding: ${offsetEncoding}`);
     }
   }
 }
@@ -70,7 +70,7 @@ export function decodeUtfIndex(
       return str_byteindex(line, utfIndex);
     } else {
       offsetEncoding satisfies never;
-      throw new Error(`Invalid encoding ${offsetEncoding}`);
+      throw new Error(`Invalid offset encoding ${offsetEncoding}`);
     }
   }
 }

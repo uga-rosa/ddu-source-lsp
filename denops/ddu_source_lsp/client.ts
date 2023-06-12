@@ -1,6 +1,6 @@
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 
-import { Encoding } from "./params.ts";
+import { OffsetEncoding } from "./offset_encoding.ts";
 
 export const CLIENT_NAME = [
   "nvim-lsp",
@@ -19,7 +19,7 @@ export type ClientId = number | string;
 export type Client = {
   name: ClientName;
   id: ClientId;
-  encoding?: Encoding;
+  offsetEncoding?: OffsetEncoding;
 };
 
 export async function getClients(
