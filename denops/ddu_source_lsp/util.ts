@@ -47,10 +47,3 @@ export async function asyncFlatMap<Item, Res>(
   const a = await Promise.all(arr.map(callback));
   return a.flat();
 }
-
-export async function asyncForEach<Item>(
-  arr: Item[],
-  callback: (value: Item, index: number, array: Item[]) => Promise<void>,
-) {
-  await Promise.all(arr.map(callback));
-}
