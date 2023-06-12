@@ -4,7 +4,6 @@ import { fromFileUrl, isAbsolute, toFileUrl } from "https://deno.land/std@0.190.
 import { Location, LocationLink } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
-import { Encoding } from "./params.ts";
 
 export async function bufNrToFileUri(
   denops: Denops,
@@ -49,130 +48,9 @@ export async function asyncFlatMap<Item, Res>(
   return a.flat();
 }
 
-const Encoder = new TextEncoder();
-function byteLength(str: string) {
-  return Encoder.encode(str).length;
-}
-
-export function toUtfIndex(
-  line: string,
-  index: number,
-  encoding: Encoding = "utf-16",
-): number {
-  if (encoding === "utf-8") {
-    if (index) {
-      return index;
-    } else {
-      return byteLength(line);
-    }
-  } else {
-    const { utf32Index, utf16Index } = str_utfindex(line, index);
-    if (encoding === "utf-16") {
-      return utf16Index;
-    } else if (encoding === "utf-32") {
-      return utf32Index;
-    } else {
-      encoding satisfies never;
-      throw new Error(`Invalid encoding: ${encoding}`);
-    }
-  }
-}
-
-export function fromUtfIndex(
-  line: string,
-  index: number,
-  encoding: Encoding = "utf-16",
-): number {
-  if (encoding === "utf-8") {
-    if (index) {
-      return index;
-    } else {
-      return byteLength(line);
-    }
-  } else {
-    if (encoding === "utf-16") {
-      return str_byteindex(line, index, true);
-    } else if (encoding === "utf-32") {
-      return str_byteindex(line, index);
-    } else {
-      encoding satisfies never;
-      throw new Error(`Invalid encoding ${encoding}`);
-    }
-  }
-}
-
-/**
- * Copy of vim.str_utfindex()
- */
-function str_utfindex(
-  str: string,
-  index: number,
+export async function asyncForEach<Item>(
+  arr: Item[],
+  callback: (value: Item, index: number, array: Item[]) => Promise<void>,
 ) {
-  let utf32Index = 0;
-  let utf16Index = 0;
-
-  for (let i = 0; i < index; ++i) {
-    const codePoint = str.codePointAt(i);
-    if (codePoint !== undefined) {
-      if (codePoint > 0xFFFF) {
-        // surrogate pair
-        utf16Index += 2;
-        i += 1; // Skip next unit which is the second half of a surrogate pair
-      } else {
-        utf16Index += 1;
-      }
-
-      utf32Index += 1;
-    } else {
-      // Invalid byte or embedded null, count as one code point
-      utf32Index += 1;
-      utf16Index += 1;
-    }
-  }
-
-  return { utf32Index, utf16Index };
-}
-
-/**
- * Copy of vim.str_byteindex()
- */
-function str_byteindex(
-  str: string,
-  index: number,
-  use_utf16 = false,
-): number {
-  let byteIndex = 0;
-  let utfIndex = 0;
-
-  for (let i = 0; i < str.length; ++i) {
-    const codePoint = str.codePointAt(i);
-    if (codePoint !== undefined) {
-      if (codePoint > 0xFFFF) {
-        // surrogate pair
-        if (use_utf16) {
-          utfIndex += 2;
-        } else {
-          utfIndex += 1;
-        }
-        i += 1; // Skip next unit which is the second half of a surrogate pair
-      } else {
-        utfIndex += 1;
-      }
-
-      if (utfIndex > index) {
-        break;
-      }
-
-      byteIndex = i + 1;
-    } else {
-      // Invalid byte or embedded null, count as one code point
-      if (utfIndex >= index) {
-        break;
-      }
-      byteIndex += 1;
-      utfIndex += 1;
-    }
-  }
-
-  return byteIndex;
+  await Promise.all(arr.map(callback));
 }
