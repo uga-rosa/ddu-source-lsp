@@ -62,7 +62,7 @@ function toUtfIndex(
 
   let bytePoint = 0;
   let i = 0;
-  while (i < str.length && bytePoint <= byteIndex) {
+  while (i < str.length && bytePoint < byteIndex) {
     const codePoint = str.codePointAt(i)!;
     if (codePoint > 0xFFFF) {
       // Surrogate pair
