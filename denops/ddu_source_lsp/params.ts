@@ -7,9 +7,10 @@ import {
 } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { getProperDiagnostics } from "../@ddu-sources/lsp_diagnostic.ts";
-import { ClientName } from "./client.ts";
-import { encodeUtfIndex, OffsetEncoding } from "./offset_encoding.ts";
-import { bufNrToFileUri } from "./util.ts";
+import { Client } from "./client.ts";
+import { bufNrToFileUri, isPositionBefore } from "./util.ts";
+import { vimGetCursor, vimGetPos } from "./vim.ts";
+import { OffsetEncoding } from "./offset_encoding.ts";
 
 export type TextDocumentPositionParams = {
   /** The text document. */
@@ -24,17 +25,9 @@ export async function makePositionParams(
   winId: number,
   offsetEncoding?: OffsetEncoding,
 ): Promise<TextDocumentPositionParams> {
-  const [_, lnum, byteCol] = await fn.getcurpos(denops, winId) as number[];
-  const line = (await fn.getbufline(denops, bufNr, lnum))[0] ?? "";
-  const character = encodeUtfIndex(line, byteCol - 1, offsetEncoding);
-  const position: Position = {
-    line: lnum - 1,
-    character,
-  };
-
   return {
     textDocument: await makeTextDocumentIdentifier(denops, bufNr),
-    position,
+    position: await vimGetCursor(denops, winId, bufNr, offsetEncoding),
   };
 }
 
@@ -54,15 +47,13 @@ type CodeActionParams = {
 };
 
 export async function makeCodeActionParams(
-  clilentName: ClientName,
   denops: Denops,
   bufNr: number,
-  winId: number,
-  offsetEncoding?: OffsetEncoding,
+  clilent: Client,
 ): Promise<CodeActionParams> {
   const textDocument = await makeTextDocumentIdentifier(denops, bufNr);
-  const range = await getSelectionRange(denops, bufNr, winId, offsetEncoding);
-  const diagnostics = await getProperDiagnostics(clilentName, denops, bufNr);
+  const range = await getSelectionRange(denops, bufNr, clilent.offsetEncoding);
+  const diagnostics = await getProperDiagnostics(clilent.name, denops, bufNr);
 
   return {
     textDocument,
@@ -74,43 +65,19 @@ export async function makeCodeActionParams(
 async function getSelectionRange(
   denops: Denops,
   bufNr: number,
-  winId: number,
   offsetEncoding?: OffsetEncoding,
 ): Promise<Range> {
+  // In normal mode, both 'v' and '.' mark positions will be the cursor position.
+  // In visual mode, 'v' will be the start of the visual area and '.' will be the cursor position (the end of the visual area).
+  const pos1 = await vimGetPos(denops, "v", bufNr, offsetEncoding);
+  const pos2 = await vimGetPos(denops, ".", bufNr, offsetEncoding);
+  const [start, end] = isPositionBefore(pos1, pos2) ? [pos1, pos2] : [pos2, pos1];
+
   const mode = await fn.mode(denops);
-  if (mode === "v" || mode === "V") {
-    const pos1vim = await fn.getpos(denops, ".");
-    const pos2vim = await fn.getpos(denops, "v");
-    // 1-index, col is byte offset.
-    const pos1 = { lnum: pos1vim[1], col: pos1vim[2] };
-    const pos2 = { lnum: pos2vim[1], col: pos2vim[2] };
-    const [startByte, endByte] = (pos1.lnum < pos2.lnum ||
-        (pos1.lnum === pos2.lnum && pos1.col <= pos2.col))
-      ? [pos1, pos2]
-      : [pos2, pos1];
-
-    const startLine = (await fn.getbufline(denops, bufNr, startByte.lnum))[0];
-    const endLine = (await fn.getbufline(denops, bufNr, endByte.lnum))[0];
-
-    return {
-      start: {
-        line: startByte.lnum - 1,
-        character: mode === "V" ? 0 : encodeUtfIndex(startLine, startByte.col - 1, offsetEncoding),
-      },
-      end: {
-        line: endByte.lnum - 1,
-        character: encodeUtfIndex(endLine, mode === "V" ? -1 : endByte.col - 1, offsetEncoding),
-      },
-    };
-  } else {
-    const curpos = await fn.getcurpos(denops, winId);
-    const position: Position = {
-      line: curpos[1] - 1,
-      character: curpos[2] - 1,
-    };
-    return {
-      start: position,
-      end: position,
-    };
+  if (mode === "V") {
+    start.character = 0;
+    end.character = Number.MAX_SAFE_INTEGER;
   }
+
+  return { start, end };
 }

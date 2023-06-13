@@ -4,10 +4,12 @@ import { Location, SymbolInformation, WorkspaceSymbol } from "npm:vscode-languag
 
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
-import { uriToPath } from "../ddu_source_lsp/util.ts";
+import { SomePartial, uriToPath } from "../ddu_source_lsp/util.ts";
 import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
+
+export type ActionWorkspaceSymbol = SomePartial<ActionData, "range">;
 
 type Params = {
   clientName: ClientName;
@@ -24,7 +26,7 @@ export class Source extends BaseSource<Params> {
     context: Context;
     input: string;
     parent?: DduItem;
-  }): ReadableStream<Item<ActionData>[]> {
+  }): ReadableStream<Item<ActionWorkspaceSymbol>[]> {
     const { denops, sourceOptions, sourceParams, context: ctx } = args;
     const { clientName, query } = sourceParams;
     const method: Method = "workspace/symbol";
@@ -64,7 +66,7 @@ function parseResult(
   client: Client,
   bufNr: number,
   method: Method,
-): Item<ActionData>[] {
+): Item<ActionWorkspaceSymbol>[] {
   /**
    * Reference:
    * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbol
@@ -95,13 +97,9 @@ function parseResult(
 
 export async function resolveWorkspaceSymbol(
   denops: Denops,
-  action: ActionData,
+  action: ActionWorkspaceSymbol,
   symbol: WorkspaceSymbol,
 ) {
-  if (action.range) {
-    return;
-  }
-
   const resolvedSymbol = await lspRequest(
     denops,
     action.context.client,
