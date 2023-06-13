@@ -116,7 +116,9 @@ async function getNvimLspDiagnostics(
   denops: Denops,
   bufNr: number | null,
 ) {
-  return (await denops.call(`luaeval`, `vim.diagnostic.get(${bufNr})`) as NvimLspDiagnostic[] | null)
+  return (await denops.call(`luaeval`, `vim.diagnostic.get(${bufNr})`) as
+    | NvimLspDiagnostic[]
+    | null)
     ?.map((diag) => {
       return {
         ...diag,
@@ -172,7 +174,10 @@ async function getVimLspDiagnostics(
   if (bufNr) {
     const uri = await bufNrToFileUri(denops, bufNr);
     return Object.values(
-      await denops.call(`lsp#internal#diagnostics#state#_get_all_diagnostics_grouped_by_server_for_uri`, uri) as Record<
+      await denops.call(
+        `lsp#internal#diagnostics#state#_get_all_diagnostics_grouped_by_server_for_uri`,
+        uri,
+      ) as Record<
         string,
         VimLspDiagnostic
       >,

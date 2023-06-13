@@ -79,7 +79,12 @@ export class Source extends BaseSource<Params> {
             const clients = await getClients(denops, clientName, ctx.bufNr);
 
             await Promise.all(clients.map(async (client) => {
-              const params = await makePositionParams(denops, ctx.bufNr, ctx.winId, client.offsetEncoding);
+              const params = await makePositionParams(
+                denops,
+                ctx.bufNr,
+                ctx.winId,
+                client.offsetEncoding,
+              );
               const items = await prepareTypeHierarchy(denops, client, method, params, ctx.bufNr);
               if (items && items.length > 0) {
                 const resolvedItems = await Promise.all(items.map(peek));
@@ -119,7 +124,13 @@ async function prepareTypeHierarchy(
   params: TextDocumentPositionParams,
   bufNr: number,
 ): Promise<ItemHierarchy[] | undefined> {
-  const result = await lspRequest(denops, client, "textDocument/prepareTypeHierarchy", params, bufNr);
+  const result = await lspRequest(
+    denops,
+    client,
+    "textDocument/prepareTypeHierarchy",
+    params,
+    bufNr,
+  );
   if (result) {
     return typeHierarchiesToItems(result, client, bufNr, method);
   }

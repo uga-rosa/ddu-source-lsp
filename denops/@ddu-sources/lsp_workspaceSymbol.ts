@@ -1,6 +1,16 @@
-import { BaseSource, Context, DduItem, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
+import {
+  BaseSource,
+  Context,
+  DduItem,
+  Item,
+  SourceOptions,
+} from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { Location, SymbolInformation, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import {
+  Location,
+  SymbolInformation,
+  WorkspaceSymbol,
+} from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";

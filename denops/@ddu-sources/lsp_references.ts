@@ -38,7 +38,12 @@ export class Source extends BaseSource<Params> {
           const clients = await getClients(denops, clientName, ctx.bufNr);
 
           await Promise.all(clients.map(async (client) => {
-            const params = await makePositionParams(denops, ctx.bufNr, ctx.winId, client.offsetEncoding) as ReferenceParams;
+            const params = await makePositionParams(
+              denops,
+              ctx.bufNr,
+              ctx.winId,
+              client.offsetEncoding,
+            ) as ReferenceParams;
             params.context = { includeDeclaration };
             const result = await lspRequest(denops, client, method, params, ctx.bufNr);
             const items = parseResult(result, client, ctx.bufNr, method);
