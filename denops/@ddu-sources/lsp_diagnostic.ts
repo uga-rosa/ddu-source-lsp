@@ -5,7 +5,7 @@ import { fromFileUrl, relative } from "https://deno.land/std@0.190.0/path/mod.ts
 import { Diagnostic, Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
-import { asyncFlatMap, bufNrToFileUri, SomeRequired } from "../ddu_source_lsp/util.ts";
+import { asyncFlatMap, bufNrToFileUri, pick, SomeRequired } from "../ddu_source_lsp/util.ts";
 
 type Params = {
   clientName: ClientName;
@@ -73,17 +73,18 @@ export async function getProperDiagnostics(
 ): Promise<Diagnostic[]> {
   const dduDiagnostics = await getDiagnostic(clientName, denops, bufNr);
   return dduDiagnostics?.map((diag) => {
-    return {
-      range: diag.range,
-      severity: diag.severity,
-      code: diag.code,
-      codeDescription: diag.codeDescription,
-      source: diag.source,
-      message: diag.message,
-      tags: diag.tags,
-      relatedInformation: diag.relatedInformation,
-      data: diag.data,
-    };
+    return pick(
+      diag,
+      "range",
+      "severity",
+      "code",
+      "codeDescription",
+      "source",
+      "message",
+      "tags",
+      "relatedInformation",
+      "data",
+    );
   }) ?? [];
 }
 

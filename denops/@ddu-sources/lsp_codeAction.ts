@@ -5,7 +5,7 @@ import { CodeAction, Command } from "npm:vscode-languageserver-types@3.17.4-next
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeCodeActionParams } from "../ddu_source_lsp/params.ts";
-import { ActionData } from "../@ddu-kinds/lsp_codeAction.ts";
+import { ActionData, Kind } from "../@ddu-kinds/lsp_codeAction.ts";
 
 type Params = {
   clientName: ClientName;

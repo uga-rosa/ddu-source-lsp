@@ -74,3 +74,16 @@ export function hasProps<T extends string, K>(
 ): obj is Record<T, K> {
   return keys.every((key) => obj[key] !== undefined);
 }
+
+export function pick<T, K extends keyof T>(
+  obj: T,
+  ...keys: K[]
+): Pick<T, K> {
+  return keys.filter((key) => obj[key] !== undefined)
+    .reduce((acc, key) => {
+      return {
+        ...acc,
+        [key]: obj[key],
+      };
+    }, {} as Pick<T, K>);
+}
