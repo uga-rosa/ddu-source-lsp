@@ -1,3 +1,8 @@
+import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { Position } from "npm:vscode-languageserver-types@3.17.4-next.0";
+
+import { vimGetBufLine } from "./vim.ts";
+
 const OFFSET_ENCODING = [
   /**
    * Character offsets count UTF-8 code units (e.g bytes).
@@ -23,129 +28,109 @@ const OFFSET_ENCODING = [
 
 export type OffsetEncoding = typeof OFFSET_ENCODING[number];
 
-const Encoder = new TextEncoder();
-function byteLength(str: string) {
-  return Encoder.encode(str).length;
-}
-
-export function encodeUtfIndex(
-  line: string,
-  byteIndex: number,
-  offsetEncoding: OffsetEncoding = "utf-16",
-): number {
-  if (offsetEncoding === "utf-8") {
-    if (byteIndex) {
-      return byteIndex;
-    } else {
-      return byteLength(line);
-    }
-  } else {
-    const { utf32Index, utf16Index } = str_utfindex(line, byteIndex);
-    if (offsetEncoding === "utf-16") {
-      return utf16Index;
-    } else if (offsetEncoding === "utf-32") {
-      return utf32Index;
-    } else {
-      offsetEncoding satisfies never;
-      throw new Error(`Invalid offset encoding: ${offsetEncoding}`);
-    }
-  }
-}
-
-export function decodeUtfIndex(
-  line: string,
-  utfIndex: number,
-  offsetEncoding: OffsetEncoding = "utf-16",
-): number {
-  if (offsetEncoding === "utf-8") {
-    if (utfIndex) {
-      return utfIndex;
-    } else {
-      return byteLength(line);
-    }
-  } else {
-    if (offsetEncoding === "utf-16") {
-      return str_byteindex(line, utfIndex, true);
-    } else if (offsetEncoding === "utf-32") {
-      return str_byteindex(line, utfIndex);
-    } else {
-      offsetEncoding satisfies never;
-      throw new Error(`Invalid offset encoding ${offsetEncoding}`);
-    }
-  }
-}
-
 /**
- * Copy of vim.str_utfindex()
+ * bytePosition refers to the cursor position returned from vim,
+ * which is calculated based on UTF-8 encoding.
+ * (0, 0)-indexed.
  */
-function str_utfindex(
+export async function encodeUtfPosition(
+  denops: Denops,
+  bufNr: number,
+  bytePosition: Position,
+  offsetEncoding: OffsetEncoding = "utf-16",
+): Promise<Position> {
+  if (offsetEncoding === "utf-8") {
+    return bytePosition;
+  } else {
+    const byteIndex = bytePosition.character;
+    const line = await vimGetBufLine(denops, bufNr, bytePosition.line);
+
+    const { utf32Index, utf16Index } = toUtfIndex(line, byteIndex);
+    return {
+      ...bytePosition,
+      character: (offsetEncoding === "utf-16") ? utf16Index : utf32Index,
+    };
+  }
+}
+
+function toUtfIndex(
   str: string,
-  index: number,
+  byteIndex: number,
 ) {
-  let utf32Index = 0;
   let utf16Index = 0;
+  let utf32Index = 0;
 
-  for (let i = 0; i < index; ++i) {
-    const codePoint = str.codePointAt(i);
-    if (codePoint !== undefined) {
-      if (codePoint > 0xFFFF) {
-        // surrogate pair
-        utf16Index += 2;
-        i += 1; // Skip next unit which is the second half of a surrogate pair
-      } else {
-        utf16Index += 1;
-      }
-
-      utf32Index += 1;
+  let bytePoint = 0;
+  let i = 0;
+  while (i < str.length && bytePoint <= byteIndex) {
+    const codePoint = str.codePointAt(i)!;
+    if (codePoint > 0xFFFF) {
+      // Surrogate pair
+      utf16Index += 2;
+      i += 2;
     } else {
-      // Invalid byte or embedded null, count as one code point
-      utf32Index += 1;
-      utf16Index += 1;
+      utf16Index++;
+      i++;
     }
+    utf32Index++;
+    bytePoint += codePointToUtf8ByteSize(codePoint);
   }
 
   return { utf32Index, utf16Index };
 }
 
-/**
- * Copy of vim.str_byteindex()
- */
-function str_byteindex(
+function codePointToUtf8ByteSize(
+  codepoint: number,
+): number {
+  if (codepoint <= 0x7F) {
+    return 1;
+  } else if (codepoint <= 0x7FF) {
+    return 2;
+  } else if (codepoint <= 0xFFFF) {
+    return 3;
+  } else if (codepoint <= 0x10FFFF) {
+    return 4;
+  } else {
+    throw new Error("Invalid Unicode codepoint");
+  }
+}
+
+export async function decodeUtfPosition(
+  denops: Denops,
+  bufNr: number,
+  utfPosition: Position,
+  offsetEncoding: OffsetEncoding = "utf-16",
+): Promise<Position> {
+  if (offsetEncoding === "utf-8") {
+    return utfPosition;
+  } else {
+    const utfIndex = utfPosition.character;
+    const line = await vimGetBufLine(denops, bufNr, utfPosition.line);
+
+    return {
+      ...utfPosition,
+      character: toByteIndex(line, utfIndex, offsetEncoding === "utf-16"),
+    };
+  }
+}
+
+function toByteIndex(
   str: string,
-  index: number,
-  use_utf16 = false,
+  utfIndex: number,
+  useUtf16: boolean,
 ): number {
   let byteIndex = 0;
-  let utfIndex = 0;
+  let charIndex = 0;
 
-  for (let i = 0; i < str.length; ++i) {
-    const codePoint = str.codePointAt(i);
-    if (codePoint !== undefined) {
-      if (codePoint > 0xFFFF) {
-        // surrogate pair
-        if (use_utf16) {
-          utfIndex += 2;
-        } else {
-          utfIndex += 1;
-        }
-        i += 1; // Skip next unit which is the second half of a surrogate pair
-      } else {
-        utfIndex += 1;
-      }
-
-      if (utfIndex > index) {
-        break;
-      }
-
-      byteIndex = i + 1;
-    } else {
-      // Invalid byte or embedded null, count as one code point
-      if (utfIndex >= index) {
-        break;
-      }
-      byteIndex += 1;
-      utfIndex += 1;
+  while (charIndex < utfIndex && charIndex < str.length) {
+    const codePoint = str.codePointAt(charIndex)!;
+    if (useUtf16 && codePoint > 0xFFFF) {
+      // Surrogate pair
+      charIndex++;
     }
+    charIndex++;
+
+    byteIndex += codePointToUtf8ByteSize(codePoint);
   }
 
   return byteIndex;
