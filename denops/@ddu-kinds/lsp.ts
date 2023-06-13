@@ -36,25 +36,31 @@ import {
   Previewer,
 } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { exists } from "https://deno.land/std@0.191.0/fs/mod.ts";
+import { existsSync } from "https://deno.land/std@0.191.0/fs/mod.ts";
+import {
+  asyncIteratorFrom as fromA,
+  wrapAsyncIterator as wrapA,
+} from "https://deno.land/x/iterator_helpers@v0.1.2/mod.ts";
 import { Range, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
-import { dedent } from "npm:ts-dedent";
 
-import { asyncFlatMap } from "../ddu_source_lsp/util.ts";
+import { bufNrToPath, hasProps } from "../ddu_source_lsp/util.ts";
 import { Client } from "../ddu_source_lsp/client.ts";
 import { Method } from "../ddu_source_lsp/request.ts";
 import { resolvePath } from "../ddu_source_lsp/handler.ts";
 import { resolveWorkspaceSymbol } from "../@ddu-sources/lsp_workspaceSymbol.ts";
 import { decodeUtfPosition } from "../ddu_source_lsp/offset_encoding.ts";
 
-export type ActionData = {
-  bufNr?: number;
-  path: string;
-  range: Range;
-  context: ItemContext;
-  lnum?: number;
-  col?: number;
-};
+export type ActionData =
+  & (
+    | { bufNr: number; path?: string }
+    | { bufNr?: number; path: string }
+  )
+  & {
+    range: Range;
+    context: ItemContext;
+    lnum?: number;
+    col?: number;
+  };
 
 export type ItemContext = {
   client: Client;
@@ -69,25 +75,23 @@ async function ensureAction(
   item: DduItem,
 ): Promise<EnsuredActionData> {
   const action = item.action as ActionData;
-  if (!action) {
+  if (!action || (action.bufNr === undefined && action.path === undefined)) {
     throw new Error(`Invalid usage of kind-lsp`);
   }
 
-  // Section to resolve
+  if (hasProps(action, "bufNr", "path", "lnum", "col")) {
+    return action;
+  }
+
   if (action.context.method === "workspace/symbol") {
     await resolveWorkspaceSymbol(denops, action, item.data as WorkspaceSymbol);
-    if (action.range === undefined) {
-      action.range satisfies never;
-      throw new Error(dedent`
-                      Internal error: could not resolve range (workspaceSymbol/resolve).
-                      Please report to https://github.com/uga-rosa/ddu-source-lsp/issues
-                      `);
-    }
   }
   await resolvePath(denops, action);
 
-  const bufNr = action.bufNr ?? await fn.bufadd(denops, action.path);
+  // At least one of bufNr and path exists
+  const bufNr = action.bufNr ?? await fn.bufadd(denops, action.path!);
   await fn.bufload(denops, bufNr);
+  const path = action.path ?? await bufNrToPath(denops, action.bufNr!);
   const decodedPosition = await decodeUtfPosition(
     denops,
     bufNr,
@@ -95,12 +99,15 @@ async function ensureAction(
     action.context.client.offsetEncoding,
   );
 
-  return {
+  const ensuredAction = {
     ...action,
     bufNr,
+    path,
     lnum: decodedPosition.line + 1,
     col: decodedPosition.character + 1,
   };
+  item.action = ensuredAction;
+  return ensuredAction;
 }
 
 type OpenParams = {
@@ -151,7 +158,7 @@ export class Kind extends BaseKind<Params> {
         await fn.settagstack(denops, ctx.winId, { items: [{ from, tagname }] }, "t");
       }
 
-      for (const item of items) {
+      await wrapA(fromA(items)).forEach(async (item) => {
         const action = await ensureAction(denops, item);
 
         if (openParams.command !== "edit") {
@@ -168,7 +175,9 @@ export class Kind extends BaseKind<Params> {
 
         // Note: Open folds and centering
         await denops.cmd("normal! zvzz");
-      }
+      }).catch((e) => {
+        console.error(e);
+      });
 
       return ActionFlags.None;
     },
@@ -179,9 +188,9 @@ export class Kind extends BaseKind<Params> {
     }) => {
       const { denops, items } = args;
 
-      const qfloclist: QuickFix[] = await asyncFlatMap(items, async (item) => {
-        const action = await ensureAction(denops, item);
-        if (action) {
+      await Promise.all(items
+        .map(async (item) => {
+          const action = await ensureAction(denops, item);
           const { lnum, col } = action;
           return {
             bufnr: action.bufNr,
@@ -190,15 +199,14 @@ export class Kind extends BaseKind<Params> {
             col,
             text: item.word,
           };
-        } else {
-          return [];
-        }
-      });
-
-      if (qfloclist.length > 0) {
-        await fn.setqflist(denops, qfloclist);
-        await denops.cmd("copen");
-      }
+        }))
+        .then(async (qfloclists: QuickFix[]) => {
+          await fn.setqflist(denops, qfloclists);
+          await denops.cmd("copen");
+        })
+        .catch((e) => {
+          console.error(e);
+        });
 
       return ActionFlags.None;
     },
@@ -213,7 +221,7 @@ export class Kind extends BaseKind<Params> {
     const action = await ensureAction(args.denops, args.item);
     const param = args.actionParams as PreviewOption;
 
-    if (param.previewCmds === undefined || !await exists(action.path)) {
+    if (param.previewCmds === undefined || !existsSync(action.path)) {
       return {
         kind: "buffer",
         expr: action.bufNr,
@@ -229,14 +237,14 @@ export class Kind extends BaseKind<Params> {
         Math.ceil(lineNr - ctx.height / 2),
       );
 
-      const pairs: Record<string, string> = {
+      const pairs = {
         s: action.path,
         l: String(lineNr),
         h: String(ctx.height),
         e: String(startLine + ctx.height),
         b: String(startLine),
         "%": "%",
-      };
+      } as const satisfies Record<string, string>;
       const replacer = (
         match: string,
         p1: string,
@@ -244,7 +252,7 @@ export class Kind extends BaseKind<Params> {
         if (!p1.length || !(p1 in pairs)) {
           throw `invalid item ${match}`;
         }
-        return pairs[p1];
+        return pairs[p1 as keyof typeof pairs];
       };
 
       try {

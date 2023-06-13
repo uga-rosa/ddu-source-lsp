@@ -9,8 +9,15 @@ export async function bufNrToFileUri(
   denops: Denops,
   bufNr: number,
 ) {
-  const filepath = await denops.eval(`fnamemodify(bufname(${bufNr}), ":p")`) as string;
+  const filepath = await bufNrToPath(denops, bufNr);
   return isAbsolute(filepath) ? toFileUrl(filepath).href : filepath;
+}
+
+export async function bufNrToPath(
+  denops: Denops,
+  bufNr: number,
+) {
+  return await denops.eval(`fnamemodify(bufname(${bufNr}), ":p")`) as string;
 }
 
 export function locationToItem(
@@ -59,4 +66,11 @@ export function isPositionBefore(
 ): boolean {
   return a.line < b.line ||
     (a.line === b.line && a.character <= b.character);
+}
+
+export function hasProps<T extends string, K>(
+  obj: Record<string, K | undefined>,
+  ...keys: T[]
+): obj is Record<T, K> {
+  return keys.every((key) => obj[key] !== undefined);
 }

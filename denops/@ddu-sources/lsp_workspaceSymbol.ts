@@ -107,7 +107,9 @@ export async function resolveWorkspaceSymbol(
     symbol,
     action.context.bufNr,
   );
-  if (resolvedSymbol) {
+  if (resolvedSymbol === null) {
+    throw new Error(`Fail to workspaceSymbol/resolve`);
+  } else {
     /**
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
      */
