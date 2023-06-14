@@ -58,8 +58,8 @@ export type ActionData =
   & {
     range: Range;
     context: ItemContext;
-    lnum?: number;
-    col?: number;
+    lnum?: number; // 1-index
+    col?: number; // 1-index
   };
 
 export type ItemContext = {
@@ -225,7 +225,6 @@ export class Kind extends BaseKind<Params> {
       return {
         kind: "buffer",
         expr: action.bufNr,
-        path: action.path,
         lineNr: action.lnum,
       };
     } else {
@@ -265,7 +264,13 @@ export class Kind extends BaseKind<Params> {
         return {
           kind: "nofile",
           contents: ["Error", e.toString()],
-          highlights: errorHighlights,
+          highlights: [{
+            name: "ddu-kind-lsp-error",
+            hl_group: "Error",
+            row: 1,
+            col: 1,
+            width: 5,
+          }],
         };
       }
     }
@@ -275,11 +280,3 @@ export class Kind extends BaseKind<Params> {
     return {};
   }
 }
-
-const errorHighlights = [{
-  name: "ddu-kind-lsp-error",
-  hl_group: "Error",
-  row: 1,
-  col: 1,
-  width: 5,
-}];
