@@ -2,8 +2,8 @@ import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
 import { Location, LocationLink } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
-import { ClientName } from "../ddu_source_lsp/client.ts";
+import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
+import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams } from "../ddu_source_lsp/params.ts";
 import { locationToItem } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
@@ -35,18 +35,25 @@ export class Source extends BaseSource<Params> {
 
     return new ReadableStream({
       async start(controller) {
-        const results = await lspRequest(
-          clientName,
-          denops,
-          ctx.bufNr,
-          method,
-          await makePositionParams(denops, ctx.bufNr, ctx.winId),
-        );
-        if (results) {
-          const items = definitionsToItems(results, clientName, ctx.bufNr, method);
-          controller.enqueue(items);
+        try {
+          const clients = await getClients(denops, clientName, ctx.bufNr);
+
+          await Promise.all(clients.map(async (client) => {
+            const params = await makePositionParams(
+              denops,
+              ctx.bufNr,
+              ctx.winId,
+              client.offsetEncoding,
+            );
+            const result = await lspRequest(denops, client, method, params, ctx.bufNr);
+            const items = parseResult(result, client, ctx.bufNr, method);
+            controller.enqueue(items);
+          }));
+        } catch (e) {
+          console.error(e);
+        } finally {
+          controller.close();
         }
-        controller.close();
       },
     });
   }
@@ -59,28 +66,28 @@ export class Source extends BaseSource<Params> {
   }
 }
 
-export function definitionsToItems(
-  results: Results,
-  clientName: ClientName,
+export function parseResult(
+  result: LspResult,
+  client: Client,
   bufNr: number,
   method: Method,
 ): Item<ActionData>[] {
-  return results.flatMap(({ result, clientId }) => {
-    /**
-     * References:
-     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_declaration
-     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_definition
-     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_typeDefinition
-     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_implementation
-     */
-    const locations = result as Location | Location[] | LocationLink[];
+  /**
+   * References:
+   * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_declaration
+   * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_definition
+   * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_typeDefinition
+   * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_implementation
+   */
+  const _location = result as Location | Location[] | LocationLink[] | null;
+  if (!_location) {
+    return [];
+  }
 
-    const context = { clientName, bufNr, method, clientId };
+  const locations = Array.isArray(_location) ? _location : [_location];
+  const context = { client, bufNr, method };
 
-    if (Array.isArray(locations)) {
-      return locations.map((location) => locationToItem(location, context));
-    } else {
-      return [locationToItem(locations, context)];
-    }
-  }).filter(isValidItem);
+  return locations
+    .map((location) => locationToItem(location, context))
+    .filter(isValidItem);
 }
