@@ -5,7 +5,7 @@ import { fromFileUrl, relative } from "https://deno.land/std@0.190.0/path/mod.ts
 import { Diagnostic, Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
-import { asyncFlatMap, bufNrToFileUri, SomeRequired } from "../ddu_source_lsp/util.ts";
+import { asyncFlatMap, bufNrToFileUri, pick, SomeRequired } from "../ddu_source_lsp/util.ts";
 
 type Params = {
   clientName: ClientName;
@@ -63,26 +63,45 @@ type DduDiagnostic = Diagnostic & {
   path?: string;
 };
 
+/**
+ * Each client may be adding invalid fields on its own, so filter them out.
+ */
+export async function getProperDiagnostics(
+  clientName: ClientName,
+  denops: Denops,
+  bufNr: number | null,
+): Promise<Diagnostic[]> {
+  const dduDiagnostics = await getDiagnostic(clientName, denops, bufNr);
+  return dduDiagnostics?.map((diag) => {
+    return pick(
+      diag,
+      "range",
+      "severity",
+      "code",
+      "codeDescription",
+      "source",
+      "message",
+      "tags",
+      "relatedInformation",
+      "data",
+    );
+  }) ?? [];
+}
+
 async function getDiagnostic(
   clientName: ClientName,
   denops: Denops,
   bufNr: number | null,
 ): Promise<DduDiagnostic[] | undefined> {
-  switch (clientName) {
-    case "nvim-lsp": {
-      return await getNvimLspDiagnostics(denops, bufNr);
-    }
-    case "coc.nvim": {
-      return await getCocDiagnostics(denops, bufNr);
-    }
-    case "vim-lsp": {
-      return await getVimLspDiagnostics(denops, bufNr);
-    }
-    default: {
-      clientName satisfies never;
-    }
+  if (clientName === "nvim-lsp") {
+    return await getNvimLspDiagnostics(denops, bufNr);
+  } else if (clientName === "coc.nvim") {
+    return await getCocDiagnostics(denops, bufNr);
+  } else if (clientName === "vim-lsp") {
+    return await getVimLspDiagnostics(denops, bufNr);
+  } else {
+    clientName satisfies never;
   }
-  return [];
 }
 
 type NvimLspDiagnostic = Pick<Diagnostic, "message" | "severity" | "source" | "code"> & {
@@ -97,7 +116,9 @@ async function getNvimLspDiagnostics(
   denops: Denops,
   bufNr: number | null,
 ) {
-  return (await denops.call(`luaeval`, `vim.diagnostic.get(${bufNr})`) as NvimLspDiagnostic[] | null)
+  return (await denops.call(`luaeval`, `vim.diagnostic.get(${bufNr})`) as
+    | NvimLspDiagnostic[]
+    | null)
     ?.map((diag) => {
       return {
         ...diag,
@@ -153,7 +174,10 @@ async function getVimLspDiagnostics(
   if (bufNr) {
     const uri = await bufNrToFileUri(denops, bufNr);
     return Object.values(
-      await denops.call(`lsp#internal#diagnostics#state#_get_all_diagnostics_grouped_by_server_for_uri`, uri) as Record<
+      await denops.call(
+        `lsp#internal#diagnostics#state#_get_all_diagnostics_grouped_by_server_for_uri`,
+        uri,
+      ) as Record<
         string,
         VimLspDiagnostic
       >,

@@ -1,13 +1,25 @@
-import { BaseSource, Context, DduItem, Item, SourceOptions } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
+import {
+  BaseSource,
+  Context,
+  DduItem,
+  Item,
+  SourceOptions,
+} from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { Location, SymbolInformation, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import {
+  Location,
+  SymbolInformation,
+  WorkspaceSymbol,
+} from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { lspRequest, Method, Results } from "../ddu_source_lsp/request.ts";
-import { ClientName } from "../ddu_source_lsp/client.ts";
-import { uriToPath } from "../ddu_source_lsp/util.ts";
-import { KindName } from "./lsp_documentSymbol.ts";
+import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
+import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
+import { SomePartial, uriToPath } from "../ddu_source_lsp/util.ts";
+import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
+
+export type ActionWorkspaceSymbol = SomePartial<ActionData, "range">;
 
 type Params = {
   clientName: ClientName;
@@ -24,29 +36,29 @@ export class Source extends BaseSource<Params> {
     context: Context;
     input: string;
     parent?: DduItem;
-  }): ReadableStream<Item<ActionData>[]> {
+  }): ReadableStream<Item<ActionWorkspaceSymbol>[]> {
     const { denops, sourceOptions, sourceParams, context: ctx } = args;
     const { clientName, query } = sourceParams;
-    const method = "workspace/symbol";
+    const method: Method = "workspace/symbol";
 
     return new ReadableStream({
       async start(controller) {
-        const params = {
-          query: sourceOptions.volatile ? args.input : query,
-        };
+        try {
+          const clients = await getClients(denops, clientName, ctx.bufNr);
 
-        const results = await lspRequest(
-          clientName,
-          denops,
-          ctx.bufNr,
-          method,
-          params,
-        );
-        if (results) {
-          const items = workspaceSymbolsToItems(results, clientName, ctx.bufNr, method);
-          controller.enqueue(items);
+          const params = {
+            query: sourceOptions.volatile ? args.input : query,
+          };
+          await Promise.all(clients.map(async (client) => {
+            const result = await lspRequest(denops, client, method, params, ctx.bufNr);
+            const items = parseResult(result, client, ctx.bufNr, method);
+            controller.enqueue(items);
+          }));
+        } catch (e) {
+          console.error(e);
+        } finally {
+          controller.close();
         }
-        controller.close();
       },
     });
   }
@@ -59,21 +71,25 @@ export class Source extends BaseSource<Params> {
   }
 }
 
-function workspaceSymbolsToItems(
-  response: Results,
-  clientName: ClientName,
+function parseResult(
+  result: LspResult,
+  client: Client,
   bufNr: number,
   method: Method,
-): Item<ActionData>[] {
-  return response.flatMap(({ result, clientId }) => {
-    /**
-     * Reference:
-     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbol
-     */
-    const symbols = result as SymbolInformation[] | WorkspaceSymbol[];
+): Item<ActionWorkspaceSymbol>[] {
+  /**
+   * Reference:
+   * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbol
+   */
+  const symbols = result as SymbolInformation[] | WorkspaceSymbol[] | null;
+  if (!symbols) {
+    return [];
+  }
 
-    const context = { clientName, bufNr, method, clientId };
-    return symbols.map((symbol) => {
+  const context = { client, bufNr, method };
+
+  return symbols
+    .map((symbol) => {
       const kindName = KindName[symbol.kind];
       const kind = `[${kindName}]`.padEnd(15, " ");
       return {
@@ -85,31 +101,29 @@ function workspaceSymbolsToItems(
         },
         data: symbol,
       };
-    });
-  }).filter(isValidItem);
+    })
+    .filter(isValidItem);
 }
 
 export async function resolveWorkspaceSymbol(
   denops: Denops,
-  action: ActionData,
+  action: ActionWorkspaceSymbol,
   symbol: WorkspaceSymbol,
 ) {
-  if (action.range) {
-    return;
-  }
-  const resolvedResults = await lspRequest(
-    action.context.clientName,
+  const resolvedSymbol = await lspRequest(
     denops,
-    action.context.bufNr,
+    action.context.client,
     "workspaceSymbol/resolve",
     symbol,
-    action.context.clientId,
+    action.context.bufNr,
   );
-  if (resolvedResults) {
+  if (resolvedSymbol === null) {
+    throw new Error(`Fail to workspaceSymbol/resolve`);
+  } else {
     /**
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
      */
-    const workspaceSymbol = resolvedResults[0].result as WorkspaceSymbol;
+    const workspaceSymbol = resolvedSymbol as WorkspaceSymbol;
     action.range = (workspaceSymbol.location as Location).range;
   }
 }
