@@ -83,7 +83,7 @@ async function ensureAction(
     return action;
   }
 
-  if (action.context.method === "workspace/symbol") {
+  if (action.context.method === "workspace/symbol" && action.range === undefined) {
     await resolveWorkspaceSymbol(denops, action, item.data as WorkspaceSymbol);
   }
   await resolvePath(denops, action);
