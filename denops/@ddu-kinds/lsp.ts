@@ -36,13 +36,19 @@ import {
   Previewer,
 } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
 import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { existsSync } from "https://deno.land/std@0.191.0/fs/mod.ts";
+import {
+  asyncIteratorFrom as fromA,
+  wrapAsyncIterator as wrapA,
+} from "https://deno.land/x/iterator_helpers@v0.1.2/mod.ts";
 import { Range, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { asyncFlatMap } from "../ddu_source_lsp/util.ts";
-import { ClientId, ClientName } from "../ddu_source_lsp/client.ts";
+import { bufNrToPath, hasProps } from "../ddu_source_lsp/util.ts";
+import { Client } from "../ddu_source_lsp/client.ts";
 import { Method } from "../ddu_source_lsp/request.ts";
 import { resolvePath } from "../ddu_source_lsp/handler.ts";
 import { resolveWorkspaceSymbol } from "../@ddu-sources/lsp_workspaceSymbol.ts";
+import { decodeUtfPosition } from "../ddu_source_lsp/offset_encoding.ts";
 
 export type ActionData =
   & (
@@ -50,30 +56,58 @@ export type ActionData =
     | { bufNr?: number; path: string }
   )
   & {
-    range?: Range;
+    range: Range;
     context: ItemContext;
+    lnum?: number;
+    col?: number;
   };
 
 export type ItemContext = {
-  clientName: ClientName;
+  client: Client;
   bufNr: number;
   method: Method;
-  clientId: ClientId;
 };
 
-async function getAction(
+type EnsuredActionData = Required<ActionData>;
+
+async function ensureAction(
   denops: Denops,
   item: DduItem,
-) {
+): Promise<EnsuredActionData> {
   const action = item.action as ActionData;
-  if (!action) {
-    return;
+  if (!action || (action.bufNr === undefined && action.path === undefined)) {
+    throw new Error(`Invalid usage of kind-lsp`);
   }
-  await resolvePath(denops, action);
+
+  if (hasProps(action, "bufNr", "path", "lnum", "col")) {
+    return action;
+  }
+
   if (action.context.method === "workspace/symbol") {
     await resolveWorkspaceSymbol(denops, action, item.data as WorkspaceSymbol);
   }
-  return action;
+  await resolvePath(denops, action);
+
+  // At least one of bufNr and path exists
+  const bufNr = action.bufNr ?? await fn.bufadd(denops, action.path!);
+  await fn.bufload(denops, bufNr);
+  const path = action.path ?? await bufNrToPath(denops, action.bufNr!);
+  const decodedPosition = await decodeUtfPosition(
+    denops,
+    bufNr,
+    action.range.start,
+    action.context.client.offsetEncoding,
+  );
+
+  const ensuredAction = {
+    ...action,
+    bufNr,
+    path,
+    lnum: decodedPosition.line + 1,
+    col: decodedPosition.character + 1,
+  };
+  item.action = ensuredAction;
+  return ensuredAction;
 }
 
 type OpenParams = {
@@ -124,44 +158,26 @@ export class Kind extends BaseKind<Params> {
         await fn.settagstack(denops, ctx.winId, { items: [{ from, tagname }] }, "t");
       }
 
-      for (const item of items) {
-        const action = await getAction(denops, item);
-        if (!action) {
-          continue;
-        }
+      await wrapA(fromA(items)).forEach(async (item) => {
+        const action = await ensureAction(denops, item);
 
-        const bufNr = action.bufNr ?? await fn.bufnr(denops, action.path);
-
-        // bufnr() may return -1
-        if (bufNr > 0) {
-          if (openParams.command !== "edit") {
-            await denops.call(
-              "ddu#util#execute_path",
-              openParams.command,
-              action.path,
-            );
-          }
-          // NOTE: bufNr may be hidden
-          await fn.bufload(denops, bufNr);
-          await denops.cmd(`buffer ${bufNr}`);
-        } else {
+        if (openParams.command !== "edit") {
           await denops.call(
             "ddu#util#execute_path",
             openParams.command,
             action.path,
           );
         }
+        await fn.bufload(denops, action.bufNr);
+        await denops.cmd(`buffer ${action.bufNr}`);
 
-        if (action.range) {
-          const { line, character } = action.range.start;
-          const [lineNr, col] = [line + 1, character + 1];
-
-          await fn.cursor(denops, lineNr, col);
-        }
+        await fn.cursor(denops, action.lnum, action.col);
 
         // Note: Open folds and centering
         await denops.cmd("normal! zvzz");
-      }
+      }).catch((e) => {
+        console.error(e);
+      });
 
       return ActionFlags.None;
     },
@@ -172,25 +188,25 @@ export class Kind extends BaseKind<Params> {
     }) => {
       const { denops, items } = args;
 
-      const qfloclist: QuickFix[] = await asyncFlatMap(items, async (item) => {
-        const action = await getAction(denops, item);
-        if (action) {
+      await Promise.all(items
+        .map(async (item) => {
+          const action = await ensureAction(denops, item);
+          const { lnum, col } = action;
           return {
             bufnr: action.bufNr,
             filename: action.path,
-            lnum: action.range ? action.range.start.line + 1 : undefined,
-            col: action.range ? action.range.start.character + 1 : undefined,
+            lnum,
+            col,
             text: item.word,
           };
-        } else {
-          return [];
-        }
-      });
-
-      if (qfloclist.length !== 0) {
-        await fn.setqflist(denops, qfloclist);
-        await denops.cmd("copen");
-      }
+        }))
+        .then(async (qfloclists: QuickFix[]) => {
+          await fn.setqflist(denops, qfloclists);
+          await denops.cmd("copen");
+        })
+        .catch((e) => {
+          console.error(e);
+        });
 
       return ActionFlags.None;
     },
@@ -202,33 +218,33 @@ export class Kind extends BaseKind<Params> {
     actionParams: unknown;
     previewContext: PreviewContext;
   }): Promise<Previewer | undefined> {
-    const action = await getAction(args.denops, args.item);
-    if (!action) {
-      return;
-    }
-
+    const action = await ensureAction(args.denops, args.item);
     const param = args.actionParams as PreviewOption;
 
-    if (param.previewCmds?.length && action.path && isFile(action.path)) {
-      const previewHeight = args.previewContext.height;
-      let startLine = 0;
-      let lineNr = 0;
-      if (action.range) {
-        lineNr = action.range.start.line + 1;
-        startLine = Math.max(
-          0,
-          Math.ceil(lineNr - previewHeight / 2),
-        );
-      }
+    if (param.previewCmds === undefined || !existsSync(action.path)) {
+      return {
+        kind: "buffer",
+        expr: action.bufNr,
+        path: action.path,
+        lineNr: action.lnum,
+      };
+    } else {
+      const ctx = args.previewContext;
 
-      const pairs: Record<string, string> = {
+      const lineNr = action.lnum;
+      const startLine = Math.max(
+        0,
+        Math.ceil(lineNr - ctx.height / 2),
+      );
+
+      const pairs = {
         s: action.path,
         l: String(lineNr),
-        h: String(previewHeight),
-        e: String(startLine + previewHeight),
+        h: String(ctx.height),
+        e: String(startLine + ctx.height),
         b: String(startLine),
         "%": "%",
-      };
+      } as const satisfies Record<string, string>;
       const replacer = (
         match: string,
         p1: string,
@@ -236,39 +252,23 @@ export class Kind extends BaseKind<Params> {
         if (!p1.length || !(p1 in pairs)) {
           throw `invalid item ${match}`;
         }
-        return pairs[p1];
+        return pairs[p1 as keyof typeof pairs];
       };
-      const replaced: string[] = [];
+
       try {
-        for (const cmd of param.previewCmds) {
-          replaced.push(cmd.replace(/%(.?)/g, replacer));
-        }
+        const replaced = param.previewCmds.map((cmd) => cmd.replace(/%(.?)/g, replacer));
+        return {
+          kind: "terminal",
+          cmds: replaced,
+        };
       } catch (e) {
         return {
           kind: "nofile",
           contents: ["Error", e.toString()],
-          highlights: [{
-            name: "ddu-kind-lsp-error",
-            hl_group: "Error",
-            row: 1,
-            col: 1,
-            width: 5,
-          }],
+          highlights: errorHighlights,
         };
       }
-
-      return {
-        kind: "terminal",
-        cmds: replaced,
-      };
     }
-
-    return {
-      kind: "buffer",
-      expr: action.bufNr,
-      path: action.path,
-      lineNr: action.range ? action.range.start.line + 1 : undefined,
-    };
   }
 
   override params(): Params {
@@ -276,11 +276,10 @@ export class Kind extends BaseKind<Params> {
   }
 }
 
-function isFile(path: string) {
-  try {
-    const stat = Deno.statSync(path);
-    return stat.isFile;
-  } catch {
-    return false;
-  }
-}
+const errorHighlights = [{
+  name: "ddu-kind-lsp-error",
+  hl_group: "Error",
+  row: 1,
+  col: 1,
+  width: 5,
+}];
