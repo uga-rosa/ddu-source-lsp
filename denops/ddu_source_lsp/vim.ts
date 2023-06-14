@@ -7,10 +7,6 @@ import { Position } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { decodeUtfPosition, encodeUtfPosition, OffsetEncoding } from "./offset_encoding.ts";
 
-async function isNvim(denops: Denops) {
-  return await fn.has(denops, "nvim");
-}
-
 export async function vimGetBufLine(
   denops: Denops,
   bufNr: number,
@@ -59,7 +55,7 @@ export async function vimSetCursor(
 ) {
   const { line, character } = await decodeUtfPosition(denops, bufNr, position, offsetEncoding);
 
-  if (await isNvim(denops)) {
+  if (denops.meta.host === "nvim") {
     const row = line + 1;
     const col = character;
     await denops.call("nvim_win_set_cursor", winId, [row, col]);
@@ -81,7 +77,7 @@ export async function vimWinSetBuf(
   winId: number,
   bufNr: number,
 ) {
-  if (await isNvim(denops)) {
+  if (denops.meta.host === "nvim") {
     await denops.call("nvim_win_set_buf", winId, bufNr);
   } else {
     await denops.cmd(`noautocmd call win_execute(${winId}, 'buffer ${bufNr}')`);
@@ -106,7 +102,7 @@ export async function vimBufDelete(
   denops: Denops,
   bufNr: number,
 ) {
-  if (await isNvim(denops)) {
+  if (denops.meta.host === "nvim") {
     await denops.call("nvim_buf_delete", bufNr, { force: true });
   } else {
     await denops.cmd(`bw! ${bufNr}`);
