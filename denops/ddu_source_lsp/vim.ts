@@ -2,7 +2,7 @@
  * All coordinates are (0, 0)-indexed
  */
 
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
 import { Position } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { decodeUtfPosition, encodeUtfPosition, OffsetEncoding } from "./offset_encoding.ts";

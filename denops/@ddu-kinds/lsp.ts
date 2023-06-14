@@ -34,8 +34,8 @@ import {
   DduItem,
   PreviewContext,
   Previewer,
-} from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+} from "https://deno.land/x/ddu_vim@v3.0.2/types.ts";
+import { Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
 import { existsSync } from "https://deno.land/std@0.191.0/fs/mod.ts";
 import {
   asyncIteratorFrom as fromA,

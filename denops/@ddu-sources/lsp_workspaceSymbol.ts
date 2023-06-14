@@ -4,8 +4,8 @@ import {
   DduItem,
   Item,
   SourceOptions,
-} from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
-import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+} from "https://deno.land/x/ddu_vim@v3.0.2/types.ts";
+import { Denops } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
 import {
   Location,
   SymbolInformation,

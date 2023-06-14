@@ -1,4 +1,4 @@
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
 
 import { OffsetEncoding } from "./offset_encoding.ts";
 

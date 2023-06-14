@@ -1,4 +1,4 @@
-import { BaseFilter, DduItem } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
+import { BaseFilter, DduItem } from "https://deno.land/x/ddu_vim@v3.0.2/types.ts";
 import { SymbolKind } from "npm:vscode-languageserver-types@3.17.4-next.0";
 import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 

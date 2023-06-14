@@ -1,4 +1,4 @@
-import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { Denops } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
 
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { createVirtualBuffer, isDenoUriWithFragment } from "./handler/denols.ts";

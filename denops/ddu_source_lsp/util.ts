@@ -1,5 +1,5 @@
-import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { fromFileUrl, isAbsolute, toFileUrl } from "https://deno.land/std@0.190.0/path/mod.ts";
+import { Denops } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
+import { fromFileUrl, isAbsolute, toFileUrl } from "https://deno.land/std@0.191.0/path/mod.ts";
 import { Location, LocationLink, Position } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { ItemContext } from "../@ddu-kinds/lsp.ts";

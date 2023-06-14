@@ -1,5 +1,5 @@
-import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
-import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
+import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v3.0.2/types.ts";
+import { Denops } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
 import { TypeHierarchyItem } from "npm:vscode-languageserver-types@3.17.4-next.0";
 import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 
