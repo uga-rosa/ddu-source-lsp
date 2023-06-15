@@ -9,7 +9,7 @@ import {
 import { getProperDiagnostics } from "../@ddu-sources/lsp_diagnostic.ts";
 import { Client } from "./client.ts";
 import { bufNrToFileUri } from "./util.ts";
-import { vimGetCursor, vimSelectRange } from "./vim.ts";
+import * as vim from "./vim.ts";
 import { encodeUtfPosition, OffsetEncoding } from "./offset_encoding.ts";
 
 export type TextDocumentPositionParams = {
@@ -25,7 +25,7 @@ export async function makePositionParams(
   winId: number,
   offsetEncoding?: OffsetEncoding,
 ): Promise<TextDocumentPositionParams> {
-  const cursorPos = await vimGetCursor(denops, winId);
+  const cursorPos = await vim.getCursor(denops, winId);
   return {
     textDocument: await makeTextDocumentIdentifier(denops, bufNr),
     position: await encodeUtfPosition(denops, bufNr, cursorPos, offsetEncoding),
@@ -73,7 +73,7 @@ async function getSelectionRange(
   winId: number,
   offsetEncoding?: OffsetEncoding,
 ): Promise<Range> {
-  const range = await vimSelectRange(denops, winId);
+  const range = await vim.selectRange(denops, winId);
   const encodedRange = {
     start: await encodeUtfPosition(denops, bufNr, range.start, offsetEncoding),
     end: await encodeUtfPosition(denops, bufNr, range.end, offsetEncoding),

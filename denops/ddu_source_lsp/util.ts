@@ -86,3 +86,21 @@ export function pick<T, K extends keyof T>(
       };
     }, {} as Pick<T, K>);
 }
+
+const ENCODER = new TextEncoder();
+export function byteLength(
+  str: string,
+) {
+  return ENCODER.encode(str).length;
+}
+
+const DECODER = new TextDecoder();
+export function sliceByByteIndex(
+  str: string,
+  start?: number,
+  end?: number,
+) {
+  const bytes = ENCODER.encode(str);
+  const slicedBytes = bytes.slice(start, end);
+  return DECODER.decode(slicedBytes);
+}

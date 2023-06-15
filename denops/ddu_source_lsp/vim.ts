@@ -2,21 +2,22 @@
  * All coordinates are (0, 0)-indexed
  */
 
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
-import { Position } from "npm:vscode-languageserver-types@3.17.4-next.0";
+import { batch, Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
+import { MarkInformation } from "https://deno.land/x/denops_std@v5.0.0/function/types.ts";
+import { Position, Range } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
 import { isPositionBefore, sliceByByteIndex } from "./util.ts";
 
-export async function vimGetBufLine(
+export async function getBufLine(
   denops: Denops,
   bufNr: number,
-  line: number,
+  line: number, // -1 means last line ("$")
 ): Promise<string> {
-  const lines = await fn.getbufline(denops, bufNr, line + 1);
+  const lines = await fn.getbufline(denops, bufNr, line === -1 ? "$" : line + 1);
   return lines[0];
 }
 
-export async function vimGetCursor(
+export async function getCursor(
   denops: Denops,
   winId: number,
 ): Promise<Position> {
@@ -24,14 +25,30 @@ export async function vimGetCursor(
   return { line: lnum - 1, character: col - 1 };
 }
 
-export async function vimSetCursor(
+export async function selectRange(
   denops: Denops,
   winId: number,
-  bufNr: number,
+): Promise<Range> {
+  const curWinId = await fn.win_getid(denops);
+  await denops.cmd(`noautocmd call win_gotoid(${winId})`);
+  // In normal mode, both 'v' and '.' mark positions will be the cursor position.
+  // In visual mode, 'v' will be the start of the visual area and '.' will be the cursor position (the end of the visual area).
+  const [, lnum_s, col_s] = await fn.getpos(denops, "v");
+  const [, lnum_e, col_e] = await fn.getpos(denops, ".");
+  await denops.cmd(`noautocmd call win_gotoid(${curWinId})`);
+
+  const pos1 = { line: lnum_s - 1, character: col_s - 1 };
+  const pos2 = { line: lnum_e - 1, character: col_e - 1 };
+  const [start, end] = isPositionBefore(pos1, pos2) ? [pos1, pos2] : [pos2, pos1];
+  return { start, end };
+}
+
+export async function setCursor(
+  denops: Denops,
+  winId: number,
   position: Position,
-  offsetEncoding?: OffsetEncoding,
 ) {
-  const { line, character } = await decodeUtfPosition(denops, bufNr, position, offsetEncoding);
+  const { line, character } = position;
 
   if (denops.meta.host === "nvim") {
     const row = line + 1;
@@ -50,25 +67,7 @@ export async function vimSetCursor(
   }
 }
 
-export async function vimSelectRange(
-  denops: Denops,
-  winId: number,
-): Promise<Range> {
-  const curWinId = await fn.win_getid(denops);
-  await denops.cmd(`noautocmd call win_gotoid(${winId})`);
-  // In normal mode, both 'v' and '.' mark positions will be the cursor position.
-  // In visual mode, 'v' will be the start of the visual area and '.' will be the cursor position (the end of the visual area).
-  const [, lnum_s, col_s] = await fn.getpos(denops, "v");
-  const [, lnum_e, col_e] = await fn.getpos(denops, ".");
-  await denops.cmd(`noautocmd call win_gotoid(${curWinId})`);
-
-  const pos1 = { line: lnum_s - 1, character: col_s - 1 };
-  const pos2 = { line: lnum_e - 1, character: col_e - 1 };
-  const [start, end] = isPositionBefore(pos1, pos2) ? [pos1, pos2] : [pos2, pos1];
-  return { start, end };
-}
-
-export async function vimWinSetBuf(
+export async function winSetBuf(
   denops: Denops,
   winId: number,
   bufNr: number,
@@ -80,21 +79,25 @@ export async function vimWinSetBuf(
   }
 }
 
-export async function vimBufExecute(
+export async function writeBuffers(
   denops: Denops,
-  bufNr: number,
-  cmd: string,
+  buffers: number[],
 ) {
   const currentBufNr = await fn.bufnr(denops);
   try {
-    await denops.cmd(`noautocmd buffer ${bufNr}`);
-    await denops.cmd(cmd);
+    await batch(denops, async (denops) => {
+      for (const bufNr of buffers) {
+        await fn.bufload(denops, bufNr);
+        await denops.cmd(`noautocmd buffer ${bufNr}`);
+        await denops.cmd(`noautocmd write`);
+      }
+    });
   } finally {
     await denops.cmd(`noautocmd buffer ${currentBufNr}`);
   }
 }
 
-export async function vimBufDelete(
+export async function bufDelete(
   denops: Denops,
   bufNr: number,
 ) {
@@ -102,5 +105,76 @@ export async function vimBufDelete(
     await denops.call("nvim_buf_delete", bufNr, { force: true });
   } else {
     await denops.cmd(`bw! ${bufNr}`);
+  }
+}
+
+export async function bufLineCount(
+  denops: Denops,
+  bufNr: number,
+) {
+  if (denops.meta.host === "nvim") {
+    return await denops.call("nvim_buf_line_count", bufNr) as number;
+  } else {
+    const info = await fn.getbufinfo(denops, bufNr);
+    if (info.length === 1) {
+      return info[0].linecount;
+    } else {
+      throw new Error(`Invalid bufNr: ${bufNr}`);
+    }
+  }
+}
+
+/** Only end.character is exclusive, all others are inclusive. */
+export async function bufSetText(
+  denops: Denops,
+  bufNr: number,
+  range: Range,
+  texts: string[],
+) {
+  if (denops.meta.host === "nvim") {
+    await denops.call(
+      "nvim_buf_set_text",
+      bufNr,
+      range.start.line,
+      range.start.character,
+      range.end.line,
+      range.end.character,
+      texts,
+    );
+  } else {
+    const startLine = await getBufLine(denops, bufNr, range.start.line);
+    const before = sliceByByteIndex(startLine, 0, range.start.character);
+    const endLine = await getBufLine(denops, bufNr, range.end.line);
+    const after = sliceByByteIndex(endLine, range.end.character);
+    texts[0] = before + texts[0];
+    texts[texts.length - 1] += after;
+    await fn.deletebufline(denops, bufNr, range.start.line + 1, range.end.line + 1);
+    await fn.appendbufline(denops, bufNr, range.start.line, texts);
+  }
+}
+
+export async function bufSetMarks(
+  denops: Denops,
+  bufNr: number,
+  marks: Pick<MarkInformation, "mark" | "pos">[],
+) {
+  if (denops.meta.host === "nvim") {
+    await batch(denops, async (denops) => {
+      for (const info of marks) {
+        const line = info.pos[1];
+        const col = info.pos[2] - 1;
+        await denops.call("nvim_buf_set_mark", bufNr, info.mark.slice(1), line, col, {});
+      }
+    });
+  } else {
+    const currentBufNr = await fn.bufnr(denops);
+    await batch(denops, async (denops) => {
+      await fn.setbufvar(denops, bufNr, "&bufhidden", "hide");
+      await denops.cmd(`noautocmd buffer ${bufNr}`);
+      for (const info of marks) {
+        await fn.setpos(denops, info.mark, info.pos);
+      }
+      await denops.cmd(`noautocmd buffer ${currentBufNr}`);
+    });
   }
 }
