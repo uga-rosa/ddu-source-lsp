@@ -31,7 +31,7 @@ export class Source extends BaseSource<Params> {
           const clients = await getClients(denops, clientName, ctx.bufNr);
 
           await Promise.all(clients.map(async (client) => {
-            const params = await makeCodeActionParams(denops, ctx.bufNr, client);
+            const params = await makeCodeActionParams(denops, ctx.bufNr, ctx.winId, client);
             const result = await lspRequest(denops, client, method, params, ctx.bufNr);
             const items = parseResult(result, client, ctx.bufNr, method);
             controller.enqueue(items);
