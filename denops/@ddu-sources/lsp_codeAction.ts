@@ -6,6 +6,7 @@ import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeCodeActionParams } from "../ddu_source_lsp/params.ts";
 import { ActionData } from "../@ddu-kinds/lsp_codeAction.ts";
+import { pick } from "../ddu_source_lsp/util.ts";
 
 type Params = {
   clientName: ClientName;
@@ -73,8 +74,7 @@ function parseResult(
     return {
       word: codeAction.title,
       action: {
-        edit: isCodeAction(codeAction) ? codeAction.edit : undefined,
-        command: isCodeAction(codeAction) ? codeAction.command : codeAction,
+        ...isCodeAction(codeAction) ? pick(codeAction, "edit", "command") : { command: codeAction },
         context,
       },
       data: codeAction,
