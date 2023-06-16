@@ -1,7 +1,7 @@
 import { Denops } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
 import { Position } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
-import { vimGetBufLine } from "./vim.ts";
+import * as vim from "./vim.ts";
 
 const OFFSET_ENCODING = [
   /**
@@ -43,7 +43,7 @@ export async function encodeUtfPosition(
     return bytePosition;
   } else {
     const byteIndex = bytePosition.character;
-    const line = await vimGetBufLine(denops, bufNr, bytePosition.line);
+    const line = await vim.getBufLine(denops, bufNr, bytePosition.line);
 
     const { utf32Index, utf16Index } = toUtfIndex(line, byteIndex);
     return {
@@ -105,7 +105,7 @@ export async function decodeUtfPosition(
     return utfPosition;
   } else {
     const utfIndex = utfPosition.character;
-    const line = await vimGetBufLine(denops, bufNr, utfPosition.line);
+    const line = await vim.getBufLine(denops, bufNr, utfPosition.line);
 
     return {
       ...utfPosition,

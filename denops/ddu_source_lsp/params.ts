@@ -8,9 +8,9 @@ import {
 
 import { getProperDiagnostics } from "../@ddu-sources/lsp_diagnostic.ts";
 import { Client } from "./client.ts";
-import { bufNrToFileUri, isPositionBefore } from "./util.ts";
-import { vimGetCursor, vimGetPos } from "./vim.ts";
-import { OffsetEncoding } from "./offset_encoding.ts";
+import { bufNrToFileUri } from "./util.ts";
+import * as vim from "./vim.ts";
+import { encodeUtfPosition, OffsetEncoding } from "./offset_encoding.ts";
 
 export type TextDocumentPositionParams = {
   /** The text document. */
@@ -25,9 +25,10 @@ export async function makePositionParams(
   winId: number,
   offsetEncoding?: OffsetEncoding,
 ): Promise<TextDocumentPositionParams> {
+  const cursorPos = await vim.getCursor(denops, winId);
   return {
     textDocument: await makeTextDocumentIdentifier(denops, bufNr),
-    position: await vimGetCursor(denops, winId, bufNr, offsetEncoding),
+    position: await encodeUtfPosition(denops, bufNr, cursorPos, offsetEncoding),
   };
 }
 
@@ -49,15 +50,19 @@ type CodeActionParams = {
 export async function makeCodeActionParams(
   denops: Denops,
   bufNr: number,
+  winId: number,
   clilent: Client,
 ): Promise<CodeActionParams> {
   const textDocument = await makeTextDocumentIdentifier(denops, bufNr);
-  const range = await getSelectionRange(denops, bufNr, clilent.offsetEncoding);
+  const range = await getSelectionRange(denops, bufNr, winId, clilent.offsetEncoding);
   const diagnostics = await getProperDiagnostics(clilent.name, denops, bufNr);
 
   return {
     textDocument,
-    range,
+    range: {
+      start: await encodeUtfPosition(denops, bufNr, range.start),
+      end: await encodeUtfPosition(denops, bufNr, range.end),
+    },
     context: { diagnostics: diagnostics ?? [] },
   };
 }
@@ -65,19 +70,20 @@ export async function makeCodeActionParams(
 async function getSelectionRange(
   denops: Denops,
   bufNr: number,
+  winId: number,
   offsetEncoding?: OffsetEncoding,
 ): Promise<Range> {
-  // In normal mode, both 'v' and '.' mark positions will be the cursor position.
-  // In visual mode, 'v' will be the start of the visual area and '.' will be the cursor position (the end of the visual area).
-  const pos1 = await vimGetPos(denops, "v", bufNr, offsetEncoding);
-  const pos2 = await vimGetPos(denops, ".", bufNr, offsetEncoding);
-  const [start, end] = isPositionBefore(pos1, pos2) ? [pos1, pos2] : [pos2, pos1];
+  const range = await vim.selectRange(denops, winId);
+  const encodedRange = {
+    start: await encodeUtfPosition(denops, bufNr, range.start, offsetEncoding),
+    end: await encodeUtfPosition(denops, bufNr, range.end, offsetEncoding),
+  };
 
   const mode = await fn.mode(denops);
   if (mode === "V") {
-    start.character = 0;
-    end.character = Number.MAX_SAFE_INTEGER;
+    encodedRange.start.character = 0;
+    encodedRange.end.character = Number.MAX_SAFE_INTEGER;
   }
 
-  return { start, end };
+  return encodedRange;
 }

@@ -23,6 +23,7 @@ export const SUPPORTED_METHOD = [
   "typeHierarchy/subtypes",
   "textDocument/codeAction",
   "codeAction/resolve",
+  "workspace/executeCommand",
   "deno/virtualTextDocument",
 ] as const satisfies readonly string[];
 
