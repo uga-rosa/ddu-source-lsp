@@ -1,4 +1,4 @@
-import { Denops } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
+import { Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
 import { fromFileUrl, isAbsolute, toFileUrl } from "https://deno.land/std@0.191.0/path/mod.ts";
 import { Location, LocationLink, Position } from "npm:vscode-languageserver-types@3.17.4-next.0";
 
@@ -19,6 +19,24 @@ export async function bufNrToPath(
   return await denops.eval(`fnamemodify(bufname(${bufNr}), ":p")`) as string;
 }
 
+export async function uriToBufNr(
+  denops: Denops,
+  uri: string,
+) {
+  const path = uriToPath(uri);
+  const bufNr = await fn.bufadd(denops, path);
+  await fn.bufload(denops, bufNr);
+  return bufNr;
+}
+
+export function uriToPath(uri: string) {
+  if (uri.startsWith("file://")) {
+    return fromFileUrl(uri);
+  } else {
+    return uri;
+  }
+}
+
 export function locationToItem(
   location: Location | LocationLink,
   context: ItemContext,
@@ -34,14 +52,6 @@ export function locationToItem(
     action: { path, range, context },
     data: location,
   };
-}
-
-export function uriToPath(uri: string) {
-  if (uri.startsWith("file://")) {
-    return fromFileUrl(uri);
-  } else {
-    return uri;
-  }
 }
 
 export type SomeRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
