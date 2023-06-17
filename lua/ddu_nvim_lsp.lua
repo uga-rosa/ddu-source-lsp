@@ -1,7 +1,12 @@
 local M = {}
 
+---@class Client
+---@field name "nvim-lsp"
+---@field id number
+---@field offsetEncoding "utf-8" | "utf-16" | "utf-32"
+
 ---@param bufNr integer
----@return {id: integer, offsetEncoding: string}[]
+---@return Client[]
 function M.get_client_by_bufnr(bufNr)
   local clients = vim.lsp.get_active_clients({ bufnr = bufNr })
   return vim.tbl_map(function(client)
@@ -13,10 +18,10 @@ function M.get_client_by_bufnr(bufNr)
   end, clients)
 end
 
----@param clientId integer
+---@param clientId number
 ---@param method string
 ---@param params table
----@param bufNr integer
+---@param bufNr number
 ---@return unknown? result
 function M.request(clientId, method, params, bufNr)
   local client = vim.lsp.get_client_by_id(clientId)
