@@ -124,7 +124,7 @@ async function createFile(
   change: CreateFile,
 ) {
   const path = uriToPath(change.uri);
-  if (!(await exists(path)) || (change.options?.overwrite || !change.options?.ignoreIfExists)) {
+  if (!existsSync(path) || (change.options?.overwrite || !change.options?.ignoreIfExists)) {
     await Deno.mkdir(dirname(path), { recursive: true });
     await Deno.create(path);
   }
@@ -138,7 +138,7 @@ async function renameFile(
   const oldPath = uriToPath(change.oldUri);
   const newPath = uriToPath(change.newUri);
 
-  if (await exists(newPath)) {
+  if (existsSync(newPath)) {
     if (!change.options?.overwrite || change.options.ignoreIfExists) {
       console.log(`Rename target ${change.newUri} already exists. Skipping rename.`);
       return;
@@ -177,7 +177,7 @@ async function deleteFile(
   change: DeleteFile,
 ) {
   const path = uriToPath(change.uri);
-  if (!(await exists(path))) {
+  if (!existsSync(path)) {
     if (!change.options?.ignoreIfNotExists) {
       console.error(`Cannot delete not existing file or directory ${path}`);
     }
