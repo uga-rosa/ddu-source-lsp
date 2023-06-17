@@ -1,13 +1,13 @@
-export { deadline, deferred } from "https://deno.land/std@0.191.0/async/mod.ts";
+export { deadline, deferred } from "https://deno.land/std@0.192.0/async/mod.ts";
 export {
   dirname,
   fromFileUrl,
   isAbsolute,
   relative,
   toFileUrl,
-} from "https://deno.land/std@0.191.0/path/mod.ts";
-export { existsSync } from "https://deno.land/std@0.191.0/fs/mod.ts";
-export { assertEquals } from "https://deno.land/std@0.191.0/testing/asserts.ts";
+} from "https://deno.land/std@0.192.0/path/mod.ts";
+export { existsSync } from "https://deno.land/std@0.192.0/fs/mod.ts";
+export { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
 
 export type { Denops } from "https://deno.land/x/denops_std@v5.0.0/mod.ts";
 export * as fn from "https://deno.land/x/denops_std@v5.0.0/function/mod.ts";
@@ -34,7 +34,7 @@ export {
   type PreviewContext,
   type Previewer,
   type SourceOptions,
-} from "https://deno.land/x/ddu_vim@v3.0.2/types.ts";
+} from "https://deno.land/x/ddu_vim@v3.1.0/types.ts";
 export type { ActionData as ActionDataFile } from "https://deno.land/x/ddu_kind_file@v0.5.0/file.ts";
 
 export type {
