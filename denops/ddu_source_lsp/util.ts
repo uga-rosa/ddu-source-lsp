@@ -1,7 +1,13 @@
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
-import { fromFileUrl, isAbsolute, toFileUrl } from "https://deno.land/std@0.191.0/path/mod.ts";
-import { Location, LocationLink, Position } from "npm:vscode-languageserver-types@3.17.4-next.0";
-
+import {
+  Denops,
+  fn,
+  fromFileUrl,
+  isAbsolute,
+  Location,
+  LocationLink,
+  Position,
+  toFileUrl,
+} from "./deps.ts";
 import { ItemContext } from "../@ddu-kinds/lsp.ts";
 
 export async function bufNrToFileUri(

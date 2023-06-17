@@ -32,16 +32,16 @@ import {
   BaseKind,
   Context,
   DduItem,
+  Denops,
+  existsSync,
+  fn,
+  fromA,
   PreviewContext,
   Previewer,
-} from "https://deno.land/x/ddu_vim@v3.0.2/types.ts";
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
-import { existsSync } from "https://deno.land/std@0.191.0/fs/mod.ts";
-import {
-  asyncIteratorFrom as fromA,
-  wrapAsyncIterator as wrapA,
-} from "https://deno.land/x/iterator_helpers@v0.1.2/mod.ts";
-import { Range, WorkspaceSymbol } from "npm:vscode-languageserver-types@3.17.4-next.0";
+  Range,
+  WorkspaceSymbol,
+  wrapA,
+} from "../ddu_source_lsp/deps.ts";
 
 import { bufNrToPath, hasProps } from "../ddu_source_lsp/util.ts";
 import { Client } from "../ddu_source_lsp/client.ts";

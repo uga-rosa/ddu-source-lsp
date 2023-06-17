@@ -2,28 +2,25 @@ import {
   ActionFlags,
   Actions,
   BaseKind,
+  Command,
   Context,
+  CreateFile,
   DduItem,
+  DeleteFile,
+  Denops,
+  dirname,
+  existsSync,
+  fn,
+  fromA,
+  op,
   PreviewContext,
   Previewer,
-} from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
-import { Denops, fn, op } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { dirname } from "https://deno.land/std@0.191.0/path/mod.ts";
-import { exists } from "https://deno.land/std@0.191.0/fs/mod.ts";
-import {
-  asyncIteratorFrom as fromA,
-  wrapAsyncIterator as wrapA,
-} from "https://deno.land/x/iterator_helpers@v0.1.2/mod.ts";
-import {
-  Command,
-  CreateFile,
-  DeleteFile,
   RenameFile,
   TextDocumentEdit,
   TextEdit,
   WorkspaceEdit,
-} from "npm:vscode-languageserver-types@3.17.4-next.0";
-
+  wrapA,
+} from "../ddu_source_lsp/deps.ts";
 import { ItemContext } from "./lsp.ts";
 import {
   byteLength,

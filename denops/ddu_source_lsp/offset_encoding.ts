@@ -1,6 +1,4 @@
-import { Denops } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
-import { Position } from "npm:vscode-languageserver-types@3.17.4-next.0";
-
+import { Denops, Position } from "./deps.ts";
 import * as vim from "./vim.ts";
 
 const OFFSET_ENCODING = [

@@ -1,11 +1,4 @@
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
-import {
-  CodeActionContext,
-  Position,
-  Range,
-  TextDocumentIdentifier,
-} from "npm:vscode-languageserver-types@3.17.4-next.0";
-
+import { CodeActionContext, Denops, fn, Position, Range, TextDocumentIdentifier } from "./deps.ts";
 import { getProperDiagnostics } from "../@ddu-sources/lsp_diagnostic.ts";
 import { Client } from "./client.ts";
 import { bufNrToFileUri } from "./util.ts";

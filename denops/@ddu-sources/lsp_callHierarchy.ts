@@ -1,12 +1,14 @@
-import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v3.0.2/types.ts";
-import { Denops } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
-import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
 import {
+  BaseSource,
   CallHierarchyIncomingCall,
   CallHierarchyItem,
   CallHierarchyOutgoingCall,
-} from "npm:vscode-languageserver-types@3.17.4-next.0";
-
+  Context,
+  DduItem,
+  Denops,
+  isLike,
+  Item,
+} from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";

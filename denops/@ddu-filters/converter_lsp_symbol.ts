@@ -1,6 +1,4 @@
-import { BaseFilter, DduItem } from "https://deno.land/x/ddu_vim@v3.0.2/types.ts";
-import { SymbolKind } from "npm:vscode-languageserver-types@3.17.4-next.0";
-import { isLike } from "https://deno.land/x/unknownutil@v2.1.1/is.ts";
+import { BaseFilter, DduItem, isLike, SymbolKind } from "../ddu_source_lsp/deps.ts";
 
 export class Filter extends BaseFilter<Record<never, never>> {
   filter(args: {

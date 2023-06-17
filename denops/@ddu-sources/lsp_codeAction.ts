@@ -1,7 +1,12 @@
-import { BaseSource, Context, DduItem, Item } from "https://deno.land/x/ddu_vim@v2.9.2/types.ts";
-import { Denops } from "https://deno.land/x/ddu_vim@v2.9.2/deps.ts";
-import { CodeAction, Command } from "npm:vscode-languageserver-types@3.17.4-next.0";
-
+import {
+  BaseSource,
+  CodeAction,
+  Command,
+  Context,
+  DduItem,
+  Denops,
+  Item,
+} from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeCodeActionParams } from "../ddu_source_lsp/params.ts";

@@ -2,10 +2,7 @@
  * All coordinates are (0, 0)-indexed
  */
 
-import { batch, Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
-import { MarkInformation } from "https://deno.land/x/denops_std@v5.0.0/function/types.ts";
-import { Position, Range } from "npm:vscode-languageserver-types@3.17.4-next.0";
-
+import { batch, Denops, fn, MarkInformation, Position, Range } from "./deps.ts";
 import { isPositionBefore, sliceByByteIndex } from "./util.ts";
 
 export async function getBufLine(

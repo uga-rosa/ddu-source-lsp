@@ -1,9 +1,4 @@
-import { test } from "https://deno.land/x/denops_test@v1.4.0/mod.ts";
-import { Denops } from "https://deno.land/x/denops_std@v5.0.0/mod.ts";
-import { MarkInformation } from "https://deno.land/x/denops_std@v5.0.0/function/types.ts";
-import * as fn from "https://deno.land/x/denops_std@v5.0.0/function/mod.ts";
-import { assertEquals } from "https://deno.land/std@0.191.0/testing/asserts.ts";
-
+import { assertEquals, Denops, fn, MarkInformation, test } from "./deps.ts";
 import * as vim from "./vim.ts";
 
 async function openWithText(

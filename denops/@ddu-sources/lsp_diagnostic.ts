@@ -1,9 +1,15 @@
-import { BaseSource, Context, Item } from "https://deno.land/x/ddu_vim@v3.0.2/types.ts";
-import { Denops, fn } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
-import { ActionData } from "https://deno.land/x/ddu_kind_file@v0.5.0/file.ts";
-import { fromFileUrl, relative } from "https://deno.land/std@0.191.0/path/mod.ts";
-import { Diagnostic, Location } from "npm:vscode-languageserver-types@3.17.4-next.0";
-
+import {
+  ActionDataFile,
+  BaseSource,
+  Context,
+  Denops,
+  Diagnostic,
+  fn,
+  fromFileUrl,
+  Item,
+  Location,
+  relative,
+} from "../ddu_source_lsp/deps.ts";
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
 import { asyncFlatMap, bufNrToFileUri, pick, SomeRequired } from "../ddu_source_lsp/util.ts";
 
@@ -220,9 +226,11 @@ const Severity = {
 
 type Severity = typeof Severity[keyof typeof Severity];
 
-type ItemDiagnostic = SomeRequired<Item<SomeRequired<ActionData, "col" | "lineNr">>, "action"> & {
-  data: DduDiagnostic;
-};
+type ItemDiagnostic =
+  & SomeRequired<Item<SomeRequired<ActionDataFile, "col" | "lineNr">>, "action">
+  & {
+    data: DduDiagnostic;
+  };
 
 function diagnosticToItem(diagnostic: DduDiagnostic): ItemDiagnostic {
   return {

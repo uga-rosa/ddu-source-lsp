@@ -1,9 +1,4 @@
-import { Denops } from "https://deno.land/x/ddu_vim@v3.0.2/deps.ts";
-import { register, unregister } from "https://deno.land/x/denops_std@v5.0.0/lambda/mod.ts";
-import { deferred } from "https://deno.land/std@0.191.0/async/deferred.ts";
-import { deadline } from "https://deno.land/std@0.191.0/async/deadline.ts";
-import { ensureObject } from "https://deno.land/x/unknownutil@v2.1.1/ensure.ts";
-
+import { deadline, deferred, Denops, ensureObject, register, unregister } from "./deps.ts";
 import { Client } from "./client.ts";
 
 export const SUPPORTED_METHOD = [
