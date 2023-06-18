@@ -18,7 +18,6 @@ import {
   op,
   PreviewContext,
   Previewer,
-  relative,
   RenameFile,
   TextDocumentEdit,
   TextEdit,
@@ -31,6 +30,7 @@ import {
   byteLength,
   isPositionBefore,
   pick,
+  toRelative,
   uriToBufNr,
   uriToPath,
 } from "../ddu_source_lsp/util.ts";
@@ -129,7 +129,7 @@ export class Kind extends BaseKind<Params> {
                 action.context.client.offsetEncoding,
               );
             } else if (change.kind === "create") {
-              const path = relative(Deno.cwd(), fromFileUrl(change.uri));
+              const path = await toRelative(denops, fromFileUrl(change.uri));
               return [
                 `diff --code-action a/${path} b/${path}`,
                 "new file",
@@ -137,15 +137,15 @@ export class Kind extends BaseKind<Params> {
                 `+++ b/${path}`,
               ];
             } else if (change.kind === "rename") {
-              const oldPath = relative(Deno.cwd(), fromFileUrl(change.oldUri));
-              const newPath = relative(Deno.cwd(), fromFileUrl(change.newUri));
+              const oldPath = await toRelative(denops, fromFileUrl(change.oldUri));
+              const newPath = await toRelative(denops, fromFileUrl(change.newUri));
               return [
                 `diff --code-action a/${oldPath} b/${newPath}`,
                 `rename from ${oldPath}`,
                 `rename to ${newPath}`,
               ];
             } else if (change.kind === "delete") {
-              const path = relative(Deno.cwd(), fromFileUrl(change.uri));
+              const path = await toRelative(denops, fromFileUrl(change.uri));
               return [
                 `diff --code-action a/${path} b/${path}`,
                 "deleted file",
@@ -446,7 +446,7 @@ async function createPatchFromTextEdit(
 ) {
   await fn.bufload(denops, bufNr);
 
-  const path = relative(Deno.cwd(), await bufNrToPath(denops, bufNr));
+  const path = await toRelative(denops, await bufNrToPath(denops, bufNr));
   const oldTexts = await fn.getbufline(denops, bufNr, 1, "$");
   const newTexts = await applyTextEditToLines(
     denops,

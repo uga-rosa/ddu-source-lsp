@@ -8,10 +8,15 @@ import {
   fromFileUrl,
   Item,
   Location,
-  relative,
 } from "../ddu_source_lsp/deps.ts";
 import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
-import { asyncFlatMap, bufNrToFileUri, pick, SomeRequired } from "../ddu_source_lsp/util.ts";
+import {
+  asyncFlatMap,
+  bufNrToFileUri,
+  pick,
+  SomeRequired,
+  toRelative,
+} from "../ddu_source_lsp/util.ts";
 
 type Params = {
   clientName: ClientName;
@@ -295,7 +300,7 @@ async function addIconAndHighlight(
   }
 
   const fullPath = path ?? await fn.bufname(denops, bufNr);
-  const relativePath = relative(Deno.cwd(), fullPath);
+  const relativePath = await toRelative(denops, fullPath);
 
   item.word = `${relativePath}:${lineNr + 1}:${col + 1}: ${item.word}`;
   item.display = `${icon} ${item.word}`;
