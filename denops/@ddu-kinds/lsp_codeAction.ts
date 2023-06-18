@@ -2,6 +2,7 @@ import {
   ActionFlags,
   Actions,
   BaseKind,
+  CodeAction,
   Command,
   Context,
   CreateFile,
@@ -45,7 +46,35 @@ export type ActionData = {
   edit?: WorkspaceEdit;
   command?: Command;
   context: Omit<ItemContext, "method">;
+  resolved?: boolean;
 };
+
+async function ensureAction(
+  denops: Denops,
+  item: DduItem,
+): Promise<ActionData> {
+  const action = item.action as ActionData;
+  if (!action) {
+    throw new Error(`Invalid usage of kind-lsp_codeAction`);
+  }
+
+  if (!action.resolved && action.edit === undefined) {
+    try {
+      const resolvedCodeAction = await lspRequest(
+        denops,
+        action.context.client,
+        "codeAction/resolve",
+        item.data,
+        action.context.bufNr,
+      ) as CodeAction;
+      action.edit = resolvedCodeAction.edit;
+    } finally {
+      action.resolved = true;
+    }
+  }
+
+  return action;
+}
 
 type Params = Record<never, never>;
 
@@ -56,10 +85,11 @@ export class Kind extends BaseKind<Params> {
       context: Context;
       items: DduItem[];
     }) => {
-      if (args.items.length !== 1 || !args.items[0].action) {
+      if (args.items.length !== 1) {
+        console.log(`Apply should be called on a single item.`);
         return ActionFlags.Persist;
       }
-      const action = args.items[0].action as ActionData;
+      const action = await ensureAction(args.denops, args.items[0]);
 
       if (action.edit) {
         await applyWorkspaceEdit(args.denops, action.edit, action.context.client.offsetEncoding);
@@ -84,11 +114,8 @@ export class Kind extends BaseKind<Params> {
     actionParams: unknown;
     previewContext: PreviewContext;
   }): Promise<Previewer | undefined> {
-    const action = args.item.action as ActionData;
-    if (!action) {
-      return;
-    }
     const { denops } = args;
+    const action = await ensureAction(denops, args.item);
     const offsetEncoding = action.context.client.offsetEncoding;
 
     if (action.edit) {
