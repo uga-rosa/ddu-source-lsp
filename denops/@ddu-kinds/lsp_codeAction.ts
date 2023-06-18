@@ -242,19 +242,18 @@ async function applyTextEdit(
   await wrapA(fromA(textEdits)).forEach(async (textEdit) => {
     // Normalize newline characters to \n
     textEdit.newText = textEdit.newText.replace(/\r\n?/g, "\n");
-
     const texts = textEdit.newText.split("\n");
-    const vimRange = {
-      start: await decodeUtfPosition(denops, bufNr, textEdit.range.start, offsetEncoding),
-      end: await decodeUtfPosition(denops, bufNr, textEdit.range.end, offsetEncoding),
-    };
 
     // Note that this is the number of lines, so it is 1-index.
     const lineCount = await vim.bufLineCount(denops, bufNr);
-    if (vimRange.start.line + 1 > lineCount) {
+    if (textEdit.range.start.line + 1 > lineCount) {
       // Append lines to the end of buffer `bufNr`.
       await fn.appendbufline(denops, bufNr, "$", texts);
     } else {
+      const vimRange = {
+        start: await decodeUtfPosition(denops, bufNr, textEdit.range.start, offsetEncoding),
+        end: await decodeUtfPosition(denops, bufNr, textEdit.range.end, offsetEncoding),
+      };
       const lastLine = await vim.getBufLine(
         denops,
         bufNr,
