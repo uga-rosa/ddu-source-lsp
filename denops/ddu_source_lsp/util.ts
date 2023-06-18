@@ -6,6 +6,7 @@ import {
   Location,
   LocationLink,
   Position,
+  relative,
   toFileUrl,
 } from "./deps.ts";
 import { ItemContext } from "../@ddu-kinds/lsp.ts";
@@ -119,4 +120,11 @@ export function sliceByByteIndex(
   const bytes = ENCODER.encode(str);
   const slicedBytes = bytes.slice(start, end);
   return DECODER.decode(slicedBytes);
+}
+
+export async function toRelative(
+  denops: Denops,
+  fullPath: string,
+) {
+  return relative(await fn.getcwd(denops), fullPath);
 }

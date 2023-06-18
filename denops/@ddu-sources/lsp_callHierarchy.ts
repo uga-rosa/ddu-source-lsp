@@ -6,15 +6,17 @@ import {
   Context,
   DduItem,
   Denops,
+  fromA,
   isLike,
   Item,
   Range,
+  wrapA,
 } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
-import { SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
-import { ActionData } from "../@ddu-kinds/lsp.ts";
+import { SomeRequired, toRelative, uriToPath } from "../ddu_source_lsp/util.ts";
+import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
 type ItemHierarchy = Omit<Item<ActionData>, "action" | "data"> & {
@@ -55,7 +57,11 @@ export class Source extends BaseSource<Params> {
           const result = await lspRequest(denops, client, method, { item: parent }, ctx.bufNr);
           if (result) {
             const parentPath = uriToPath(parent.uri);
-            return callHierarchiesToItems(result, parentPath, client, ctx.bufNr, method);
+            return await callHierarchiesToItems(result, parentPath, denops, {
+              client,
+              bufNr: ctx.bufNr,
+              method,
+            });
           }
         };
 
@@ -63,7 +69,7 @@ export class Source extends BaseSource<Params> {
           const children = await searchChildren(parentItem);
           if (children && children.length > 0) {
             children.forEach((child) => {
-              child.treePath = `${parentItem.treePath}/${child.data.name}`;
+              child.treePath = `${parentItem.treePath}/${child.display}`;
             });
             parentItem.isTree = true;
             parentItem.data = {
@@ -168,39 +174,42 @@ async function prepareCallHierarchy(
   }
 }
 
-function callHierarchiesToItems(
+async function callHierarchiesToItems(
   result: LspResult,
   parentPath: string,
-  client: Client,
-  bufNr: number,
-  method: Method,
-): ItemHierarchy[] {
+  denops: Denops,
+  context: ItemContext,
+): Promise<ItemHierarchy[]> {
   /**
    * References:
    * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_incomingCalls
    * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_outgoingCalls
+   *
+   * Actually, it's CallHierarchyIncomingCall[] | CallHierarchyOutgoingCall[], but tsc is an idiot, so the inference must be this to make it work.
    */
-  const calls = result as CallHierarchyIncomingCall[] | CallHierarchyOutgoingCall[] | null;
+  const calls = result as (CallHierarchyIncomingCall | CallHierarchyOutgoingCall)[] | null;
   if (!calls) {
     return [];
   }
 
-  const context = { client, bufNr, method };
+  return await wrapA(fromA(calls))
+    .flatMap(async (call) => {
+      const linkItem = "from" in call ? call.from : call.to;
+      const path = "from" in call ? uriToPath(linkItem.uri) : parentPath;
+      const relativePath = await toRelative(denops, path);
 
-  return calls.flatMap((call) => {
-    const linkItem = "from" in call ? call.from : call.to;
-    const path = "from" in call ? uriToPath(linkItem.uri) : parentPath;
-
-    const fromRanges = deduplicate(call.fromRanges, hashRange);
-    return fromRanges.map((range) => {
-      return {
-        word: linkItem.name,
-        display: `${linkItem.name}:${range.start.line + 1}:${range.start.character + 1}`,
-        action: { path, range, context },
-        data: linkItem,
-      };
-    });
-  });
+      const fromRanges = deduplicate(call.fromRanges, hashRange);
+      return fromRanges.map((range) => {
+        const lnum = range.start.line + 1;
+        const col = range.start.character + 1;
+        return {
+          word: linkItem.name,
+          display: `${linkItem.name} (${relativePath}:${lnum}:${col})`,
+          action: { path, range, context },
+          data: linkItem,
+        };
+      });
+    }).toArray();
 }
 
 function deduplicate<T>(
