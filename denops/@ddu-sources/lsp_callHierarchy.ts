@@ -8,6 +8,7 @@ import {
   Denops,
   isLike,
   Item,
+  Range,
 } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
@@ -189,9 +190,9 @@ function callHierarchiesToItems(
   return calls.flatMap((call) => {
     const linkItem = "from" in call ? call.from : call.to;
     const path = "from" in call ? uriToPath(linkItem.uri) : parentPath;
-    // const path = uriToPath(linkItem.uri);
 
-    return call.fromRanges.map((range) => {
+    const fromRanges = deduplicate(call.fromRanges, hashRange);
+    return fromRanges.map((range) => {
       return {
         word: linkItem.name,
         display: `${linkItem.name}:${range.start.line + 1}:${range.start.character + 1}`,
@@ -200,4 +201,40 @@ function callHierarchiesToItems(
       };
     });
   });
+}
+
+function deduplicate<T>(
+  array: T[],
+  hashFunction: (t: T) => unknown,
+) {
+  const hashMap = new Map();
+  const result: T[] = [];
+
+  for (const elem of array) {
+    const hash = hashFunction(elem);
+    if (!hashMap.has(hash)) {
+      hashMap.set(hash, true);
+      result.push(elem);
+    }
+  }
+
+  return result;
+}
+
+function hashRange(
+  range: Range,
+): number {
+  // FNV offset basis
+  let hash = 2166136261;
+  // large prime numbers
+  const prime1 = 16777619;
+  const prime2 = 7345789;
+
+  hash = (hash * prime1) ^ range.start.line;
+  hash = (hash * prime1) ^ range.start.character;
+
+  hash = (hash * prime2) ^ range.end.line;
+  hash = (hash * prime2) ^ range.end.character;
+
+  return hash;
 }
