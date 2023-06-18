@@ -150,28 +150,13 @@ export async function bufSetText(
   }
 }
 
-export async function bufSetMarks(
+export async function setMarks(
   denops: Denops,
-  bufNr: number,
   marks: Pick<MarkInformation, "mark" | "pos">[],
 ) {
-  if (denops.meta.host === "nvim") {
-    await batch(denops, async (denops) => {
-      for (const info of marks) {
-        const line = info.pos[1];
-        const col = info.pos[2] - 1;
-        await denops.call("nvim_buf_set_mark", bufNr, info.mark.slice(1), line, col, {});
-      }
-    });
-  } else {
-    const currentBufNr = await fn.bufnr(denops);
-    await batch(denops, async (denops) => {
-      await fn.setbufvar(denops, bufNr, "&bufhidden", "hide");
-      await denops.cmd(`noautocmd buffer ${bufNr}`);
-      for (const info of marks) {
-        await fn.setpos(denops, info.mark, info.pos);
-      }
-      await denops.cmd(`noautocmd buffer ${currentBufNr}`);
-    });
-  }
+  await batch(denops, async (denops) => {
+    for (const info of marks) {
+      await fn.setpos(denops, info.mark, info.pos);
+    }
+  });
 }

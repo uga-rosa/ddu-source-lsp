@@ -404,7 +404,7 @@ async function applyTextEdit(
       return info;
     })
     .toArray()
-    .then(async (marks) => await vim.bufSetMarks(denops, bufNr, marks));
+    .then(async (marks) => await vim.setMarks(denops, marks));
 
   // Apply fixed cursor position
   if (

@@ -209,16 +209,16 @@ test({
 
 test({
   mode: "all",
-  name: "bufSetMarks",
+  name: "setMarks",
   fn: async (denops) => {
-    const bufNr = await openWithText(denops, "bufSetMarks/test", ["foo", "bar"]);
+    const bufNr = await openWithText(denops, "setMarks/test", ["foo", "bar"]);
     const marks: Pick<MarkInformation, "mark" | "pos">[] = [
       { mark: "'a", pos: [bufNr, 1, 1, 0] },
       { mark: "'b", pos: [bufNr, 1, 3, 0] },
       { mark: "'c", pos: [bufNr, 2, 1, 0] },
       { mark: "'d", pos: [bufNr, 2, 3, 0] },
     ];
-    await vim.bufSetMarks(denops, bufNr, marks);
+    await vim.setMarks(denops, marks);
     const actualMarks = (await fn.getmarklist(denops, bufNr))
       .filter((info) => /'[a-d]/.test(info.mark));
     assertEquals(actualMarks, marks);
