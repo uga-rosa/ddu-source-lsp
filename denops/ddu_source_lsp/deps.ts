@@ -63,3 +63,5 @@ export type {
   WorkspaceEdit,
   WorkspaceSymbol,
 } from "npm:vscode-languageserver-types@3.17.4-next.0";
+
+export * as jsdiff from "https://esm.sh/diff@5.1.0";

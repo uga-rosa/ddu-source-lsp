@@ -19,6 +19,7 @@ Supported methods are:
 - callHierarchy/outgoingCalls
 - typeHierarchy/supertypes
 - typeHierarchy/subtypes
+- textDocument/codeAction
 
 See [doc](./doc/ddu-source-lsp.txt) for details.
 

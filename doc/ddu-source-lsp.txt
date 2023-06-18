@@ -37,6 +37,17 @@ https://github.com/vim-denops/denops.vim
 ==============================================================================
 EXAMPLES					*ddu-source-lsp-examples*
 >
+	call ddu#custom#patch_global(#{
+	    \ kindOptions: #{
+	    \   lsp: #{
+	    \     defaultAction: 'open',
+	    \   },
+	    \   lsp_codeAction: #{
+	    \     defaultAction: 'apply',
+	    \   },
+	    \ },
+	    \})
+
 	call ddu#start(#{
 	    \ sync: v:true,
 	    \ sources: [#{
@@ -86,7 +97,7 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 
 						*ddu-source-lsp_definition*
 - lsp_definition
-	Lists the definition locations of a symbol at the cursor position. The
+	This lists the definition locations of a symbol at the cursor position. The
 	following methods are integrated. Which one to use can be specified in
 	params (|ddu-source-lsp-param-method|).
 
@@ -97,23 +108,23 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 
 						*ddu-source-lsp_references*
 - lsp_references
-	Lists project-wide references for the symbol denoted by the cursor
+	This lists project-wide references for the symbol denoted by the cursor
 	position. See also |ddu-source-lsp-params-includeDeclaration|.
 
 					*ddu-source-lsp_documentSymbol*
 - lsp_documentSymbol
-	Lists the document symbols in the current buffer.
+	This lists the document symbols in the current buffer.
 
 					*ddu-source-lsp_workspaceSymbol*
 - lsp_workspaceSymbol
-	Lists the document symbols in the current workspace. The query option
+	This lists the document symbols in the current workspace. The query option
 	(|ddu-source-lsp-params-query|) is used to filter the symbols.
 	The |ddu-source-option-volatile| can also be used, in which case the
 	query option is ignored.
 
 						*ddu-source-lsp_callHierarchy*
 - lsp_callHierarchy
-	Lists the call hierarchy in a tree structure. Use
+	This lists the call hierarchy in a tree structure. Use
 	|ddu-ui-ff-action-expandItem| to expand the tree. The following
 	methods are integrated. Which one to use can be specified in params
 	(|ddu-source-lsp-param-method|).
@@ -145,7 +156,7 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 
 						*ddu-source-lsp_typeHierarchy*
 - lsp_typeHierarchy
-	Lists the type hierarchy in a tree structure. Use
+	This lists the type hierarchy in a tree structure. Use
 	|ddu-ui-ff-action-expandItem| to expand the tree. The following
 	methods are integrated. Which one to use can be specified in params
 	(|ddu-source-lsp-param-method|).
@@ -172,6 +183,18 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 		- foo
 		 - bar
 		    baz
+
+						*ddu-source-lsp_codeAction*
+- lsp_codeAction
+	This lists the available code actions. Executable code actions are
+	identified from the current selection. To accurately convey the
+	selection, you must call |ddu#start()| using |<Cmd>|.
+
+	You can view the changes that will be made by applying a code action
+	using the preview feature.
+
+	A dedicated |ddu-kinds|, called `lsp_codeAction`, is provided. The only
+	possible action for an item is 'apply'.
 
 
 ==============================================================================

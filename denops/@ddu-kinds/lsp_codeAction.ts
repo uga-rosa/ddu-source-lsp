@@ -2,6 +2,7 @@ import {
   ActionFlags,
   Actions,
   BaseKind,
+  CodeAction,
   Command,
   Context,
   CreateFile,
@@ -12,9 +13,12 @@ import {
   existsSync,
   fn,
   fromA,
+  fromFileUrl,
+  jsdiff,
   op,
   PreviewContext,
   Previewer,
+  relative,
   RenameFile,
   TextDocumentEdit,
   TextEdit,
@@ -23,6 +27,7 @@ import {
 } from "../ddu_source_lsp/deps.ts";
 import { ItemContext } from "./lsp.ts";
 import {
+  bufNrToPath,
   byteLength,
   isPositionBefore,
   pick,
@@ -30,14 +35,46 @@ import {
   uriToPath,
 } from "../ddu_source_lsp/util.ts";
 import * as vim from "../ddu_source_lsp/vim.ts";
-import { decodeUtfPosition, OffsetEncoding } from "../ddu_source_lsp/offset_encoding.ts";
+import {
+  decodeUtfPosition,
+  OffsetEncoding,
+  toUtf16Position,
+} from "../ddu_source_lsp/offset_encoding.ts";
 import { lspRequest } from "../ddu_source_lsp/request.ts";
 
 export type ActionData = {
   edit?: WorkspaceEdit;
   command?: Command;
   context: Omit<ItemContext, "method">;
+  resolved?: boolean;
 };
+
+async function ensureAction(
+  denops: Denops,
+  item: DduItem,
+): Promise<ActionData> {
+  const action = item.action as ActionData;
+  if (!action) {
+    throw new Error(`Invalid usage of kind-lsp_codeAction`);
+  }
+
+  if (!action.resolved && action.edit === undefined) {
+    try {
+      const resolvedCodeAction = await lspRequest(
+        denops,
+        action.context.client,
+        "codeAction/resolve",
+        item.data,
+        action.context.bufNr,
+      ) as CodeAction;
+      action.edit = resolvedCodeAction.edit;
+    } finally {
+      action.resolved = true;
+    }
+  }
+
+  return action;
+}
 
 type Params = Record<never, never>;
 
@@ -48,10 +85,11 @@ export class Kind extends BaseKind<Params> {
       context: Context;
       items: DduItem[];
     }) => {
-      if (args.items.length !== 1 || !args.items[0].action) {
+      if (args.items.length !== 1) {
+        console.log(`Apply should be called on a single item.`);
         return ActionFlags.Persist;
       }
-      const action = args.items[0].action as ActionData;
+      const action = await ensureAction(args.denops, args.items[0]);
 
       if (action.edit) {
         await applyWorkspaceEdit(args.denops, action.edit, action.context.client.offsetEncoding);
@@ -76,12 +114,76 @@ export class Kind extends BaseKind<Params> {
     actionParams: unknown;
     previewContext: PreviewContext;
   }): Promise<Previewer | undefined> {
-    const action = args.item.action as ActionData;
-    if (!action) {
-      return;
+    const { denops } = args;
+    const action = await ensureAction(denops, args.item);
+    const offsetEncoding = action.context.client.offsetEncoding;
+
+    if (action.edit) {
+      if (action.edit.documentChanges) {
+        const patch = await wrapA(fromA(action.edit.documentChanges))
+          .map(async (change) => {
+            if (!("kind" in change)) {
+              return await createPatchFromTextDocumentEdit(
+                denops,
+                change,
+                action.context.client.offsetEncoding,
+              );
+            } else if (change.kind === "create") {
+              const path = relative(Deno.cwd(), fromFileUrl(change.uri));
+              return [
+                `diff --code-action a/${path} b/${path}`,
+                "new file",
+                "--- /dev/null",
+                `+++ b/${path}`,
+              ];
+            } else if (change.kind === "rename") {
+              const oldPath = relative(Deno.cwd(), fromFileUrl(change.oldUri));
+              const newPath = relative(Deno.cwd(), fromFileUrl(change.newUri));
+              return [
+                `diff --code-action a/${oldPath} b/${newPath}`,
+                `rename from ${oldPath}`,
+                `rename to ${newPath}`,
+              ];
+            } else if (change.kind === "delete") {
+              const path = relative(Deno.cwd(), fromFileUrl(change.uri));
+              return [
+                `diff --code-action a/${path} b/${path}`,
+                "deleted file",
+                `--- a/${path}`,
+                "+++ /dev/null",
+              ];
+            } else {
+              change satisfies never;
+              throw new Error("Invalid documentChanges");
+            }
+          })
+          .reduce((acc, patch) => [...acc, ...patch, ""], [] as string[]);
+
+        return {
+          kind: "nofile",
+          contents: patch,
+          syntax: "diff",
+        };
+      } else if (action.edit.changes) {
+        const patch = await wrapA(fromA(Object.entries(action.edit.changes)))
+          .map(async ([uri, textEdits]) => {
+            const bufNr = await uriToBufNr(denops, uri);
+            return await createPatchFromTextEdit(denops, textEdits, bufNr, offsetEncoding);
+          })
+          .reduce((acc, patch) => [...acc, ...patch, ""], [] as string[]);
+
+        return {
+          kind: "nofile",
+          contents: patch,
+          syntax: "diff",
+        };
+      }
+    } else if (action.command) {
+      return {
+        kind: "nofile",
+        contents: [`Command: ${action.command.title} (${action.command.command})`],
+      };
     }
-    // TODO
-    return;
   }
 
   override params(): Params {
@@ -242,19 +344,18 @@ async function applyTextEdit(
   await wrapA(fromA(textEdits)).forEach(async (textEdit) => {
     // Normalize newline characters to \n
     textEdit.newText = textEdit.newText.replace(/\r\n?/g, "\n");
-
     const texts = textEdit.newText.split("\n");
-    const vimRange = {
-      start: await decodeUtfPosition(denops, bufNr, textEdit.range.start, offsetEncoding),
-      end: await decodeUtfPosition(denops, bufNr, textEdit.range.end, offsetEncoding),
-    };
 
     // Note that this is the number of lines, so it is 1-index.
     const lineCount = await vim.bufLineCount(denops, bufNr);
-    if (vimRange.start.line + 1 > lineCount) {
+    if (textEdit.range.start.line + 1 > lineCount) {
       // Append lines to the end of buffer `bufNr`.
       await fn.appendbufline(denops, bufNr, "$", texts);
     } else {
+      const vimRange = {
+        start: await decodeUtfPosition(denops, bufNr, textEdit.range.start, offsetEncoding),
+        end: await decodeUtfPosition(denops, bufNr, textEdit.range.end, offsetEncoding),
+      };
       const lastLine = await vim.getBufLine(
         denops,
         bufNr,
@@ -324,4 +425,86 @@ async function applyTextEdit(
       await fn.deletebufline(denops, bufNr, "$");
     }
   }
+}
+
+async function createPatchFromTextDocumentEdit(
+  denops: Denops,
+  change: TextDocumentEdit,
+  offsetEncoding?: OffsetEncoding,
+) {
+  // Limitation: document version is not supported.
+  const path = uriToPath(change.textDocument.uri);
+  const bufNr = await fn.bufadd(denops, path);
+  return await createPatchFromTextEdit(denops, change.edits, bufNr, offsetEncoding);
+}
+
+async function createPatchFromTextEdit(
+  denops: Denops,
+  textEdits: TextEdit[],
+  bufNr: number,
+  offsetEncoding?: OffsetEncoding,
+) {
+  await fn.bufload(denops, bufNr);
+
+  const path = relative(Deno.cwd(), await bufNrToPath(denops, bufNr));
+  const oldTexts = await fn.getbufline(denops, bufNr, 1, "$");
+  const newTexts = await applyTextEditToLines(
+    denops,
+    textEdits,
+    bufNr,
+    [...oldTexts],
+    offsetEncoding,
+  );
+
+  const patch = jsdiff.createPatch(
+    path,
+    oldTexts.join("\n"),
+    newTexts.join("\n"),
+  ).split("\n");
+
+  // Overwrite header
+  patch.shift();
+  patch.shift();
+  patch.unshift(`diff --code-action a/${path} b/${path}`);
+
+  return patch;
+}
+
+async function applyTextEditToLines(
+  denops: Denops,
+  textEdits: TextEdit[],
+  bufNr: number,
+  lines: string[],
+  offsetEncoding?: OffsetEncoding,
+) {
+  // Fix reversed range
+  textEdits.forEach((textEdit) => {
+    const { start, end } = textEdit.range;
+    if (!isPositionBefore(start, end)) {
+      textEdit.range = { start: end, end: start };
+    }
+  });
+
+  // Execute in reverse order.
+  // If executed from the start, the positions would be shifted based on the results.
+  textEdits.sort((a, b) => isPositionBefore(a.range.start, b.range.start) ? 1 : -1);
+
+  await wrapA(fromA(textEdits)).forEach(async (textEdit) => {
+    // Normalize newline characters to \n
+    textEdit.newText = textEdit.newText.replace(/\r\n?/g, "\n");
+    const texts = textEdit.newText.split("\n");
+    const range = {
+      start: await toUtf16Position(denops, bufNr, textEdit.range.start, offsetEncoding),
+      end: await toUtf16Position(denops, bufNr, textEdit.range.end, offsetEncoding),
+    };
+
+    const before = lines[range.start.line].slice(0, range.start.character);
+    const after = lines[range.end.line].slice(range.end.character);
+    texts[0] = before + texts[0];
+    texts[texts.length - 1] += after;
+
+    lines.splice(range.start.line, range.end.line - range.start.line + 1, ...texts);
+  });
+
+  return lines;
 }

@@ -1,4 +1,5 @@
 import { Denops, Position } from "./deps.ts";
+import { sliceByByteIndex } from "./util.ts";
 import * as vim from "./vim.ts";
 
 const OFFSET_ENCODING = [
@@ -132,4 +133,47 @@ function toByteIndex(
   }
 
   return byteIndex;
+}
+
+export async function toUtf16Position(
+  denops: Denops,
+  bufNr: number,
+  utfPosition: Position,
+  offsetEncoding: OffsetEncoding = "utf-16",
+) {
+  if (offsetEncoding === "utf-16") {
+    return utfPosition;
+  } else {
+    const line = await vim.getBufLine(denops, bufNr, utfPosition.line);
+    if (offsetEncoding === "utf-8") {
+      return {
+        ...utfPosition,
+        character: sliceByByteIndex(line, 0, utfPosition.character).length,
+      };
+    } else if (offsetEncoding === "utf-32") {
+      return {
+        ...utfPosition,
+        character: utf32ToUtf16(line, utfPosition.character),
+      };
+    } else {
+      offsetEncoding satisfies never;
+      throw new Error(`Invalid offset encoding ${offsetEncoding}`);
+    }
+  }
+}
+
+function utf32ToUtf16(
+  str: string,
+  utf32Index: number,
+) {
+  let utf16Index = 0;
+  for (let i = 0; i < utf32Index && utf16Index < str.length; i++) {
+    const codePoint = str.codePointAt(utf16Index)!;
+    if (codePoint > 0xFFFF) {
+      // Surrogate pair
+      utf16Index++;
+    }
+    utf16Index++;
+  }
+  return utf16Index;
 }
