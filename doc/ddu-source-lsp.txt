@@ -97,9 +97,9 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 
 						*ddu-source-lsp_definition*
 - lsp_definition
-	This lists the definition locations of a symbol at the cursor position. The
-	following methods are integrated. Which one to use can be specified in
-	params (|ddu-source-lsp-param-method|).
+	This lists the definition locations of a symbol at the cursor
+	position. The following methods are integrated. Which one to use can
+	be specified in params (|ddu-source-lsp-param-method|).
 
 	- textDocument/definition
 	- textDocument/typeDefinition
@@ -108,8 +108,8 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 
 						*ddu-source-lsp_references*
 - lsp_references
-	This lists project-wide references for the symbol denoted by the cursor
-	position. See also |ddu-source-lsp-params-includeDeclaration|.
+	This lists project-wide references for the symbol denoted by the
+	cursor position. See also |ddu-source-lsp-params-includeDeclaration|.
 
 					*ddu-source-lsp_documentSymbol*
 - lsp_documentSymbol
@@ -117,8 +117,8 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 
 					*ddu-source-lsp_workspaceSymbol*
 - lsp_workspaceSymbol
-	This lists the document symbols in the current workspace. The query option
-	(|ddu-source-lsp-params-query|) is used to filter the symbols.
+	This lists the document symbols in the current workspace. The query
+	option (|ddu-source-lsp-params-query|) is used to filter the symbols.
 	The |ddu-source-option-volatile| can also be used, in which case the
 	query option is ignored.
 
