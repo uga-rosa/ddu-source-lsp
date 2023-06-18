@@ -66,8 +66,8 @@ async function ensureAction(
         "codeAction/resolve",
         item.data,
         action.context.bufNr,
-      ) as CodeAction;
-      action.edit = resolvedCodeAction.edit;
+      ) as CodeAction | null;
+      action.edit = resolvedCodeAction?.edit;
     } finally {
       action.resolved = true;
     }
