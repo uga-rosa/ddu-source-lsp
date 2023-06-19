@@ -214,13 +214,13 @@ async function callHierarchiesToItems(
 
 function deduplicate<T>(
   array: T[],
-  hashFunction: (t: T) => unknown,
+  hashFunc: (t: T) => unknown,
 ) {
   const hashMap = new Map();
   const result: T[] = [];
 
   for (const elem of array) {
-    const hash = hashFunction(elem);
+    const hash = hashFunc(elem);
     if (!hashMap.has(hash)) {
       hashMap.set(hash, true);
       result.push(elem);
@@ -232,18 +232,6 @@ function deduplicate<T>(
 
 function hashRange(
   range: Range,
-): number {
-  // FNV offset basis
-  let hash = 2166136261;
-  // large prime numbers
-  const prime1 = 16777619;
-  const prime2 = 7345789;
-
-  hash = (hash * prime1) ^ range.start.line;
-  hash = (hash * prime1) ^ range.start.character;
-
-  hash = (hash * prime2) ^ range.end.line;
-  hash = (hash * prime2) ^ range.end.character;
-
-  return hash;
+): string {
+  return `${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
 }
