@@ -34,7 +34,7 @@ export {
   type PreviewContext,
   type Previewer,
   type SourceOptions,
-} from "https://deno.land/x/ddu_vim@v3.1.0/types.ts";
+} from "https://deno.land/x/ddu_vim@v3.2.1/types.ts";
 export type { ActionData as ActionDataFile } from "https://deno.land/x/ddu_kind_file@v0.5.0/file.ts";
 
 export type {
