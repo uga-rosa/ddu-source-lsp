@@ -368,12 +368,14 @@ async function applyTextEdit(
           line: lineCount - 1,
           character: lastLineLen,
         };
-      } else if (vimRange.end.character + 1 > lastLineLen && textEdit.newText.endsWith("\n")) {
-        // Properly handling replacements that go beyond the end of a line,
-        // and ensuring no extra empty lines are added.
-        texts.pop();
+      } else if (vimRange.end.character + 1 > lastLineLen) {
+        vimRange.end.character = lastLineLen;
+        if (textEdit.newText.endsWith("\n")) {
+          // Properly handling replacements that go beyond the end of a line,
+          // and ensuring no extra empty lines are added.
+          texts.pop();
+        }
       }
-      vimRange.end.character = Math.min(vimRange.end.character, lastLineLen);
 
       await vim.bufSetText(denops, bufNr, vimRange, texts);
 
@@ -504,10 +506,12 @@ async function applyTextEditToLines(
         line: lines.length - 1,
         character: lastLine.length,
       };
-    } else if (range.end.character + 1 > lastLine.length && textEdit.newText.endsWith("\n")) {
-      texts.pop();
+    } else if (range.end.character + 1 > lastLine.length) {
+      range.end.character = lastLine.length;
+      if (textEdit.newText.endsWith("\n")) {
+        texts.pop();
+      }
     }
-    range.end.character = Math.min(range.end.character, lastLine.length);
 
     const before = lines[range.start.line].slice(0, range.start.character);
     const after = lines[range.end.line].slice(range.end.character);
