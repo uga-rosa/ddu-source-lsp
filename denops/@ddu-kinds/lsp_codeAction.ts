@@ -498,6 +498,17 @@ async function applyTextEditToLines(
       end: await toUtf16Position(denops, bufNr, textEdit.range.end, offsetEncoding),
     };
 
+    const lastLine = lines[range.end.line] ?? lines[lines.length - 1];
+    if (range.end.line + 1 > lines.length) {
+      range.end = {
+        line: lines.length - 1,
+        character: lastLine.length,
+      };
+    } else if (range.end.character + 1 > lastLine.length && textEdit.newText.endsWith("\n")) {
+      texts.pop();
+    }
+    range.end.character = Math.min(range.end.character, lastLine.length);
+
     const before = lines[range.start.line].slice(0, range.start.character);
     const after = lines[range.end.line].slice(range.end.character);
     texts[0] = before + texts[0];
