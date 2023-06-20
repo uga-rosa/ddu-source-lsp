@@ -1,4 +1,4 @@
-import { Denops, fn } from "./deps.ts";
+import { Denops, op } from "./deps.ts";
 import { OffsetEncoding } from "./offset_encoding.ts";
 
 export const CLIENT_NAME = [
@@ -57,7 +57,7 @@ async function cocClients(
   bufNr: number,
 ): Promise<Client[]> {
   const services = await denops.call("CocAction", "services") as CocService[];
-  const filetype = await fn.getbufvar(denops, bufNr, "&filetype") as string;
+  const filetype = await op.filetype.getBuffer(denops, bufNr);
   const activeIds = services
     .filter((service) => service.state === "running" && service.languageIds.includes(filetype))
     .map((service) => service.id);

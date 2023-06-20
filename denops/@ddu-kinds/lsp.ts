@@ -245,6 +245,7 @@ export class Kind extends BaseKind<Params> {
         b: String(startLine),
         "%": "%",
       } as const satisfies Record<string, string>;
+
       const replacer = (
         match: string,
         p1: string,
