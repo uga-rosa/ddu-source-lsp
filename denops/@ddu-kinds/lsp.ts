@@ -36,6 +36,7 @@ import {
   existsSync,
   fn,
   fromA,
+  op,
   PreviewContext,
   Previewer,
   Range,
@@ -169,6 +170,7 @@ export class Kind extends BaseKind<Params> {
           );
         }
         await fn.bufload(denops, action.bufNr);
+        await op.buflisted.setBuffer(denops, action.bufNr, true);
         await denops.cmd(`buffer ${action.bufNr}`);
 
         await fn.cursor(denops, action.lnum, action.col);
