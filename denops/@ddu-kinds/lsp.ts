@@ -169,7 +169,6 @@ export class Kind extends BaseKind<Params> {
             action.path,
           );
         }
-        await fn.bufload(denops, action.bufNr);
         await op.buflisted.setBuffer(denops, action.bufNr, true);
         await denops.cmd(`buffer ${action.bufNr}`);
 
