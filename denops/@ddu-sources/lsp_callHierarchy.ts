@@ -19,12 +19,17 @@ import { SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
-type ItemHierarchy = Omit<SomeRequired<Item<ActionData>, "treePath">, "action" | "data"> & {
-  action: SomeRequired<ActionData, "path" | "range">;
-  data: CallHierarchyItem & {
-    children?: ItemHierarchy[];
+type ItemHierarchy =
+  & Omit<
+    SomeRequired<Item<ActionData>, "treePath" | "level">,
+    "action" | "data"
+  >
+  & {
+    action: SomeRequired<ActionData, "path" | "range">;
+    data: CallHierarchyItem & {
+      children?: ItemHierarchy[];
+    };
   };
-};
 
 export type Params = {
   clientName: ClientName;
@@ -93,7 +98,6 @@ export class Source extends BaseSource<Params> {
                 if (autoExpandSingle && items.length === 1 && items[0].data.children) {
                   items[0].isExpanded = true;
                   const children = await Promise.all(items[0].data.children.map(peek));
-                  children.forEach((child) => child.level = 1);
                   controller.enqueue(children);
                 }
               }
@@ -154,6 +158,7 @@ async function prepareCallHierarchy(
           word: call.name,
           display,
           treePath: [display],
+          level: 0,
           action: { path, range: call.range, context },
           data: call,
         };
@@ -200,6 +205,7 @@ async function searchChildren(
           word: linkItem.name,
           display,
           treePath: [...itemParent.treePath, display],
+          level: itemParent.level + 1,
           action: { path, range, context: { client, bufNr, method } },
           data: linkItem,
         };

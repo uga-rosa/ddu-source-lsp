@@ -14,12 +14,17 @@ import { SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
-type ItemHierarchy = Omit<Item<ActionData>, "action" | "data"> & {
-  action: SomeRequired<ActionData, "path" | "range">;
-  data: TypeHierarchyItem & {
-    children?: ItemHierarchy[];
+type ItemHierarchy =
+  & Omit<
+    SomeRequired<Item<ActionData>, "treePath">,
+    "action" | "data"
+  >
+  & {
+    action: SomeRequired<ActionData, "path" | "range">;
+    data: TypeHierarchyItem & {
+      children?: ItemHierarchy[];
+    };
   };
-};
 
 export type Params = {
   clientName: ClientName;
@@ -97,7 +102,6 @@ export class Source extends BaseSource<Params> {
                 if (autoExpandSingle && items.length === 1 && items[0].data.children) {
                   items[0].isExpanded = true;
                   const children = await Promise.all(items[0].data.children.map(peek));
-                  children.forEach((child) => child.level = 1);
                   controller.enqueue(children);
                 }
               }
@@ -173,6 +177,7 @@ function typeHierarchyToItem(
   return {
     word: typeHierarchyItem.name,
     treePath: [...itemParent?.treePath ?? [], typeHierarchyItem.name],
+    level: (itemParent?.level ?? -1) + 1,
     action: {
       path: uriToPath(typeHierarchyItem.uri),
       range: typeHierarchyItem.range,
