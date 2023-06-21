@@ -46,30 +46,27 @@ export class Source extends BaseSource<Params> {
 
     return new ReadableStream({
       async start(controller) {
-        const searchChildren = async (parentItem: ItemHierarchy) => {
-          const parent = parentItem.data;
-          const client = parentItem.action.context.client;
+        const searchChildren = async (itemParent: ItemHierarchy) => {
+          const parent = itemParent.data;
+          const client = itemParent.action.context.client;
           const result = await lspRequest(denops, client, method, { item: parent }, ctx.bufNr);
           if (result) {
-            return typeHierarchiesToItems(result, client, ctx.bufNr, method);
+            return typeHierarchiesToItems(result, client, ctx.bufNr, method, itemParent);
           }
         };
 
-        const peek = async (parentItem: ItemHierarchy) => {
-          const children = await searchChildren(parentItem);
+        const peek = async (itemParent: ItemHierarchy) => {
+          const children = await searchChildren(itemParent);
           if (children && children.length > 0) {
-            children.forEach((child) => {
-              child.treePath = `${parentItem.treePath}/${child.data.name}`;
-            });
-            parentItem.isTree = true;
-            parentItem.data = {
-              ...parentItem.data,
+            itemParent.isTree = true;
+            itemParent.data = {
+              ...itemParent.data,
               children,
             };
           } else {
-            parentItem.isTree = false;
+            itemParent.isTree = false;
           }
-          return parentItem;
+          return itemParent;
         };
 
         try {
@@ -145,6 +142,7 @@ function typeHierarchiesToItems(
   client: Client,
   bufNr: number,
   method: Method,
+  itemParent?: ItemHierarchy,
 ): ItemHierarchy[] {
   /**
    * References:
@@ -160,22 +158,23 @@ function typeHierarchiesToItems(
   const context = { bufNr, method, client };
 
   return typeHierarchyItems
-    .map((typeHierarchyItem) => typeHierarchyToItem(typeHierarchyItem, context))
+    .map((typeHierarchyItem) => typeHierarchyToItem(typeHierarchyItem, context, itemParent))
     .filter(isValidItem);
 }
 
 function typeHierarchyToItem(
   typeHierarchyItem: TypeHierarchyItem,
   context: ItemContext,
+  itemParent?: ItemHierarchy,
 ): ItemHierarchy {
   return {
     word: typeHierarchyItem.name,
+    treePath: [...itemParent?.treePath ?? [], typeHierarchyItem.name],
     action: {
       path: uriToPath(typeHierarchyItem.uri),
       range: typeHierarchyItem.range,
       context,
     },
-    treePath: `/${typeHierarchyItem.name}`,
     data: typeHierarchyItem,
   };
 }
