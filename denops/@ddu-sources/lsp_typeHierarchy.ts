@@ -56,6 +56,9 @@ export class Source extends BaseSource<Params> {
         };
 
         const peek = async (itemParent: ItemHierarchy) => {
+          if (typeof itemParent.isTree === "boolean") {
+            return itemParent;
+          }
           const children = await searchChildren(itemParent);
           if (children && children.length > 0) {
             itemParent.isTree = true;

@@ -52,6 +52,9 @@ export class Source extends BaseSource<Params> {
     return new ReadableStream({
       async start(controller) {
         const peek = async (itemParent: ItemHierarchy) => {
+          if (typeof itemParent.isTree === "boolean") {
+            return itemParent;
+          }
           const children = await searchChildren(denops, method, itemParent, ctx.bufNr);
           if (children && children.length > 0) {
             itemParent.isTree = true;
