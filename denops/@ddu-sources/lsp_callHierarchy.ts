@@ -139,17 +139,19 @@ async function prepareCallHierarchy(
     }
 
     const context = { bufNr, method, client };
+    const cwd = await fn.getcwd(denops);
 
     return callHierarchyItems
       .map((call) => {
+        const path = uriToPath(call.uri);
+        const lnum = call.range.start.line + 1;
+        const col = call.range.start.character + 1;
+        const display = `${call.name} (${relative(cwd, path)}:${lnum}:${col})`;
         return {
           word: call.name,
-          action: {
-            path: uriToPath(call.uri),
-            range: call.range,
-            context,
-          },
-          treePath: [call.name],
+          display,
+          treePath: [display],
+          action: { path, range: call.range, context },
           data: call,
         };
       })
