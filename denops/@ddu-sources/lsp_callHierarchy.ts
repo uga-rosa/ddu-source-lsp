@@ -6,20 +6,20 @@ import {
   Context,
   DduItem,
   Denops,
-  fromA,
+  fn,
   isLike,
   Item,
   Range,
-  wrapA,
+  relative,
 } from "../ddu_source_lsp/deps.ts";
-import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
+import { lspRequest, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
-import { SomeRequired, toRelative, uriToPath } from "../ddu_source_lsp/util.ts";
-import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
+import { SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
+import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
-type ItemHierarchy = Omit<Item<ActionData>, "action" | "data"> & {
+type ItemHierarchy = Omit<SomeRequired<Item<ActionData>, "treePath">, "action" | "data"> & {
   action: SomeRequired<ActionData, "path" | "range">;
   data: CallHierarchyItem & {
     children?: ItemHierarchy[];
@@ -51,35 +51,18 @@ export class Source extends BaseSource<Params> {
 
     return new ReadableStream({
       async start(controller) {
-        const searchChildren = async (parentItem: ItemHierarchy) => {
-          const parent = parentItem.data;
-          const client = parentItem.action.context.client;
-          const result = await lspRequest(denops, client, method, { item: parent }, ctx.bufNr);
-          if (result) {
-            const parentPath = uriToPath(parent.uri);
-            return await callHierarchiesToItems(result, parentPath, denops, {
-              client,
-              bufNr: ctx.bufNr,
-              method,
-            });
-          }
-        };
-
-        const peek = async (parentItem: ItemHierarchy) => {
-          const children = await searchChildren(parentItem);
+        const peek = async (itemParent: ItemHierarchy) => {
+          const children = await searchChildren(denops, method, itemParent, ctx.bufNr);
           if (children && children.length > 0) {
-            children.forEach((child) => {
-              child.treePath = `${parentItem.treePath}/${child.display}`;
-            });
-            parentItem.isTree = true;
-            parentItem.data = {
-              ...parentItem.data,
+            itemParent.isTree = true;
+            itemParent.data = {
+              ...itemParent.data,
               children,
             };
           } else {
-            parentItem.isTree = false;
+            itemParent.isTree = false;
           }
-          return parentItem;
+          return itemParent;
         };
 
         try {
@@ -158,58 +141,72 @@ async function prepareCallHierarchy(
     const context = { bufNr, method, client };
 
     return callHierarchyItems
-      .map((callHierarchyItem) => {
+      .map((call) => {
         return {
-          word: callHierarchyItem.name,
+          word: call.name,
           action: {
-            path: uriToPath(callHierarchyItem.uri),
-            range: callHierarchyItem.range,
+            path: uriToPath(call.uri),
+            range: call.range,
             context,
           },
-          treePath: `/${callHierarchyItem.name}`,
-          data: callHierarchyItem,
+          treePath: [call.name],
+          data: call,
         };
       })
       .filter(isValidItem);
   }
 }
 
-async function callHierarchiesToItems(
-  result: LspResult,
-  parentPath: string,
+async function searchChildren(
   denops: Denops,
-  context: ItemContext,
-): Promise<ItemHierarchy[]> {
-  /**
-   * References:
-   * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_incomingCalls
-   * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_outgoingCalls
-   *
-   * Actually, it's CallHierarchyIncomingCall[] | CallHierarchyOutgoingCall[], but tsc is an idiot, so the inference must be this to make it work.
-   */
-  const calls = result as (CallHierarchyIncomingCall | CallHierarchyOutgoingCall)[] | null;
-  if (!calls) {
-    return [];
-  }
+  method: Method,
+  itemParent: ItemHierarchy,
+  bufNr: number,
+): Promise<ItemHierarchy[] | undefined> {
+  const parent = itemParent.data;
+  const client = itemParent.action.context.client;
+  const result = await lspRequest(denops, client, method, { item: parent }, bufNr);
+  if (result) {
+    /**
+     * References:
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_incomingCalls
+     * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#callHierarchy_outgoingCalls
+     *
+     * Actually, it's CallHierarchyIncomingCall[] | CallHierarchyOutgoingCall[], but tsc is an idiot, so the inference must be this to make it work.
+     */
+    const calls = result as (CallHierarchyIncomingCall | CallHierarchyOutgoingCall)[] | null;
+    if (!calls) {
+      return;
+    }
 
-  return await wrapA(fromA(calls))
-    .flatMap(async (call) => {
-      const linkItem = "from" in call ? call.from : call.to;
-      const path = "from" in call ? uriToPath(linkItem.uri) : parentPath;
-      const relativePath = await toRelative(denops, path);
+    const cwd = await fn.getcwd(denops);
+
+    return calls.flatMap((call) => {
+      const linkItem = isIncomingCall(call) ? call.from : call.to;
+      const path = isIncomingCall(call) ? uriToPath(linkItem.uri) : itemParent.action.path;
+      const relativePath = relative(cwd, path);
 
       const fromRanges = deduplicate(call.fromRanges, hashRange);
       return fromRanges.map((range) => {
         const lnum = range.start.line + 1;
         const col = range.start.character + 1;
+        const display = `${linkItem.name} (${relativePath}:${lnum}:${col})`;
         return {
           word: linkItem.name,
-          display: `${linkItem.name} (${relativePath}:${lnum}:${col})`,
-          action: { path, range, context },
+          display,
+          treePath: [...itemParent.treePath, display],
+          action: { path, range, context: { client, bufNr, method } },
           data: linkItem,
         };
       });
-    }).toArray();
+    });
+  }
+}
+
+function isIncomingCall(
+  call: CallHierarchyIncomingCall | CallHierarchyOutgoingCall,
+): call is CallHierarchyIncomingCall {
+  return "from" in call;
 }
 
 function deduplicate<T>(
