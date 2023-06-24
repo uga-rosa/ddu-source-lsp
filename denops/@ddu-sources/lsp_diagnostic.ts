@@ -131,11 +131,11 @@ async function getDiagnostic(
 }
 
 type NvimLspDiagnostic = Pick<Diagnostic, "message" | "severity" | "source" | "code"> & {
+  bufnr?: number;
   lnum: number;
   end_lnum: number;
   col: number;
   end_col: number;
-  bufnr: number;
 };
 
 async function getNvimLspDiagnostics(
