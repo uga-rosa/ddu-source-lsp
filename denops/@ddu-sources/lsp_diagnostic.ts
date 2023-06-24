@@ -279,34 +279,3 @@ function sortItemDiagnostic(items: ItemDiagnostic[], curBufNr: number) {
     }
   });
 }
-
-const SeverityIconHlMap = {
-  1: ["E", "ErrorMsg"],
-  2: ["W", "WarningMsg"],
-  3: ["I", ""],
-  4: ["H", ""],
-} as const satisfies Record<Severity, Readonly<[string, string]>>;
-
-async function addIconAndHighlight(
-  denops: Denops,
-  item: ItemDiagnostic,
-) {
-  const { severity = 1 } = item.data;
-  const { bufNr, path, col, lineNr } = item.action;
-
-  const [icon, hl_group] = SeverityIconHlMap[severity];
-  if (hl_group) {
-    item.highlights = [{
-      name: "nvim-lsp-sign",
-      hl_group,
-      col: 1,
-      width: 1,
-    }];
-  }
-
-  const fullPath = path ?? await fn.bufname(denops, bufNr);
-  const relativePath = await toRelative(denops, fullPath);
-
-  item.word = `${relativePath}:${lineNr + 1}:${col + 1}: ${item.word}`;
-  item.display = `${icon} ${item.word}`;
-}
