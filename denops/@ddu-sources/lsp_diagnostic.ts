@@ -145,25 +145,24 @@ async function getNvimLspDiagnostics(
   if (denops.meta.host === "vim") {
     throw new Error("Client 'nvim-lsp' is not available in vim");
   }
-  return (await denops.call(`luaeval`, `vim.diagnostic.get(${bufNr})`) as
-    | NvimLspDiagnostic[]
-    | null)
-    ?.map((diag) => {
-      return {
-        ...diag,
-        range: {
-          start: {
-            line: diag.lnum,
-            character: diag.col,
-          },
-          end: {
-            line: diag.end_lnum,
-            character: diag.end_col,
-          },
-        },
-        bufNr: diag.bufnr,
-      };
-    });
+  const nvimLspDiagnostics = (await denops.call(
+    `luaeval`,
+    `vim.diagnostic.get(${bufNr})`,
+  )) as NvimLspDiagnostic[] | null;
+  return nvimLspDiagnostics?.map((diag) => ({
+    ...diag,
+    bufNr: diag.bufnr,
+    range: {
+      start: {
+        line: diag.lnum,
+        character: diag.col,
+      },
+      end: {
+        line: diag.end_lnum,
+        character: diag.end_col,
+      },
+    },
+  }));
 }
 
 type CocDiagnostic = Pick<Diagnostic, "message" | "source" | "code"> & {
@@ -176,17 +175,19 @@ async function getCocDiagnostics(
   denops: Denops,
   bufNr: number | null,
 ) {
+  const cocDiagnostics = (await denops.call(
+    "CocAction",
+    "diagnosticList",
+  )) as CocDiagnostic[] | null;
   const uri = bufNr ? await bufNrToFileUri(denops, bufNr) : undefined;
-  return (await denops.call("CocAction", "diagnosticList") as CocDiagnostic[] | null)
+  return cocDiagnostics
     ?.filter((diag) => !uri || diag.location.uri === uri)
-    .map((diag) => {
-      return {
-        ...diag,
-        path: diag.file,
-        range: diag.location.range,
-        severity: Severity[diag.severity],
-      };
-    });
+    .map((diag) => ({
+      ...diag,
+      path: diag.file,
+      range: diag.location.range,
+      severity: Severity[diag.severity],
+    }));
 }
 
 type VimLspDiagnostic = {
@@ -206,36 +207,22 @@ async function getVimLspDiagnostics(
       await denops.call(
         `lsp#internal#diagnostics#state#_get_all_diagnostics_grouped_by_server_for_uri`,
         uri,
-      ) as Record<
-        string,
-        VimLspDiagnostic
-      >,
+      ) as Record<string, VimLspDiagnostic>,
     ).flatMap((diag) => {
       const path = fromFileUrl(diag.params.uri);
-      return diag.params.diagnostics.map((diag) => {
-        return {
-          ...diag,
-          path,
-        };
-      });
+      return diag.params.diagnostics
+        .map((diag) => ({ ...diag, path }));
     });
   } else {
     return Object.values(
       await denops.call(
         `lsp#internal#diagnostics#state#_get_all_diagnostics_grouped_by_uri_and_server`,
-      ) as Record<
-        string,
-        Record<string, VimLspDiagnostic>
-      >,
+      ) as Record<string, Record<string, VimLspDiagnostic>>,
     ).flatMap((subRecord) => Object.values(subRecord))
       .flatMap((vimDiagnostic) => {
         const path = fromFileUrl(vimDiagnostic.params.uri);
-        return vimDiagnostic.params.diagnostics.map((diag) => {
-          return {
-            ...diag,
-            path,
-          };
-        });
+        return vimDiagnostic.params.diagnostics
+          .map((diag) => ({ ...diag, path }));
       });
   }
 }
