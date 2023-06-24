@@ -281,14 +281,11 @@ function diagnosticToItem(
  */
 function sortItemDiagnostic(items: ItemDiagnostic[]) {
   items.sort((a, b) => {
-    if (a.action.bufNr === b.action.bufNr) {
-      if (a.data.severity === b.data.severity) {
-        return a.action.range.start.line - b.action.range.start.line;
-      } else {
-        return (a.data.severity ?? 1) - (b.data.severity ?? 1);
-      }
-    } else {
-      return a.action.bufNr - b.action.bufNr;
-    }
+    return [
+      a.action.bufNr - b.action.bufNr,
+      (a.data.severity ?? 1) - (b.data.severity ?? 1),
+      a.action.range.start.line - b.action.range.start.line,
+      a.action.range.start.character - b.action.range.start.character,
+    ].find((x) => x !== 0) ?? 0;
   });
 }
