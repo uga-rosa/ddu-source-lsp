@@ -9,11 +9,12 @@ import {
   Item,
   Location,
 } from "../ddu_source_lsp/deps.ts";
-import { ClientName, isClientName } from "../ddu_source_lsp/client.ts";
+import { assertClientName, ClientName } from "../ddu_source_lsp/client.ts";
 import {
   asyncFlatMap,
   bufNrToFileUri,
   pick,
+  printError,
   SomeRequired,
   toRelative,
 } from "../ddu_source_lsp/util.ts";
@@ -35,28 +36,29 @@ export class Source extends BaseSource<Params> {
 
     return new ReadableStream({
       async start(controller) {
-        if (!isClientName(clientName)) {
-          console.log(`Unknown client name: ${clientName}`);
+        try {
+          assertClientName(clientName);
+
+          const buffers = Array.isArray(buffer) ? buffer : [buffer];
+
+          const diagnostics = await asyncFlatMap(buffers, async (buffer) => {
+            const bufNr = buffer === 0 ? context.bufNr : buffer;
+            return await getDiagnostic(clientName, denops, bufNr) ?? [];
+          });
+
+          const items = await Promise.all(diagnostics.map(async (diagnostic) => {
+            const item = diagnosticToItem(diagnostic);
+            await addIconAndHighlight(denops, item);
+            return item;
+          }));
+          sortItemDiagnostic(items, context.bufNr);
+
+          controller.enqueue(items);
+        } catch (e) {
+          printError(denops, e, "lsp_diagnostic");
+        } finally {
           controller.close();
-          return;
         }
-
-        const buffers = Array.isArray(buffer) ? buffer : [buffer];
-
-        const diagnostics = await asyncFlatMap(buffers, async (buffer) => {
-          const bufNr = buffer === 0 ? context.bufNr : buffer;
-          return await getDiagnostic(clientName, denops, bufNr) ?? [];
-        });
-
-        const items = await Promise.all(diagnostics.map(async (diagnostic) => {
-          const item = diagnosticToItem(diagnostic);
-          await addIconAndHighlight(denops, item);
-          return item;
-        }));
-        sortItemDiagnostic(items, context.bufNr);
-
-        controller.enqueue(items);
-        controller.close();
       },
     });
   }
@@ -127,6 +129,9 @@ async function getNvimLspDiagnostics(
   denops: Denops,
   bufNr: number | null,
 ) {
+  if (denops.meta.host === "vim") {
+    throw new Error("Client 'nvim-lsp' is not available in vim");
+  }
   return (await denops.call(`luaeval`, `vim.diagnostic.get(${bufNr})`) as
     | NvimLspDiagnostic[]
     | null)

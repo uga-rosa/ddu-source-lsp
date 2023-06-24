@@ -9,8 +9,10 @@ export const CLIENT_NAME = [
 
 export type ClientName = typeof CLIENT_NAME[number];
 
-export function isClientName(clientName: string): clientName is ClientName {
-  return CLIENT_NAME.some((name) => clientName === name);
+export function assertClientName(clientName: string): asserts clientName is ClientName {
+  if (!CLIENT_NAME.some((name) => clientName === name)) {
+    throw new Error(`Unknown client name: ${clientName}`);
+  }
 }
 
 export type Client = {
@@ -32,7 +34,7 @@ export async function getClients(
     return await vimLspClients(denops, bufNr);
   } else {
     clientName satisfies never;
-    throw new Error(`Unknown clientName: ${clientName}`);
+    throw new Error(`Unknown client name: ${clientName}`);
   }
 }
 
