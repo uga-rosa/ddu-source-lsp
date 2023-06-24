@@ -18,7 +18,7 @@ import {
   uriToPath,
 } from "../ddu_source_lsp/util.ts";
 
-type ItemDiagnostic =
+export type ItemDiagnostic =
   & Omit<Item, "action" | "data">
   & {
     action: SomeRequired<ActionData, "bufNr">;
