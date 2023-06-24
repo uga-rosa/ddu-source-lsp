@@ -1,0 +1,71 @@
+*ddu-filter-converter_lsp_diagnostic.txt*		Jazz up diagnostics.
+
+Author  : uga-rosa
+License : MIT license
+
+CONTENTS			*ddu-filter-converter_lsp_diagnostic-contents*
+
+Introduction		|ddu-filter-converter_lsp_diagnostic-introduction|
+Examples		|ddu-filter-converter_lsp_diagnostic-examples|
+Params			|ddu-filter-converter_lsp_diagnostic-params|
+
+
+==============================================================================
+INTRODUCTION		*ddu-filter-converter_lsp_diagnostic-introduction*
+
+Decorate with severity icons, highlights, positions, file names, etc.
+This converter is specifically designed for |ddu-source-lsp_diagnostic| only.
+
+
+==============================================================================
+EXAMPLES			*ddu-filter-converter_lsp_diagnostic-examples*
+>
+	call ddu#custom#patch_global(#{
+	    \   sourceOptions: #{
+	    \     lsp_diagnostic: #{
+	    \       converters: [ 'converter_lsp_diagnostic' ],
+	    \     },
+	    \   }
+	    \ })
+<
+
+==============================================================================
+PARAMS				*ddu-filter-converter_lsp_diagnostic-params*
+
+			*ddu-filter-converter_lsp_diagnostic-param-iconMap*
+iconMap		(|Dictionary|)
+	This represents icons corresponding to severity names.
+
+	Default: {
+	  Error: "E",
+	  Warning: "W",
+	  Info: "I",
+	  Hint: "H",
+	}
+
+			*ddu-filter-converter_lsp_diagnostic-param-hlGroupMap*
+hlGroupMap	(|Dictionary|)
+	This represents |highlight-groups| corresponding to severity names.
+
+	Default: {
+	  Error: "ErrorMsg",
+	  Warning: "WarningMsg",
+	  Info: "",
+	  Hint: "",
+	}
+
+		*ddu-filter-converter_lsp_diagnostic-param-columnLength*
+columnLength	(number)
+	Display width of the diagnostic text.
+
+	Default: 50
+
+			*ddu-filter-converter_lsp_diagnostic-param-separator*
+separator	(string)
+	String used for separator.
+
+	Default: " | "
+
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:noet:fen:noet:
