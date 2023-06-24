@@ -56,16 +56,18 @@ export function uriToPath(uri: string) {
 
 export function locationToItem(
   location: Location | LocationLink,
+  cwd: string,
   context: ItemContext,
 ) {
   const uri = "uri" in location ? location.uri : location.targetUri;
   const range = "range" in location ? location.range : location.targetSelectionRange;
   const path = uriToPath(uri);
+  const relativePath = relative(cwd, path);
   const { line, character } = range.start;
   const [lineNr, col] = [line + 1, character + 1];
   return {
-    word: path,
-    display: `${path}:${lineNr}:${col}`,
+    word: relativePath,
+    display: `${relativePath}:${lineNr}:${col}`,
     action: { path, range, context },
     data: location,
   };
@@ -130,6 +132,14 @@ export function sliceByByteIndex(
   const bytes = ENCODER.encode(str);
   const slicedBytes = bytes.slice(start, end);
   return DECODER.decode(slicedBytes);
+}
+
+export async function getCwd(
+  denops: Denops,
+  winId: number,
+) {
+  const winNr = await fn.win_id2win(denops, winId);
+  return await fn.getcwd(denops, winNr);
 }
 
 export async function toRelative(

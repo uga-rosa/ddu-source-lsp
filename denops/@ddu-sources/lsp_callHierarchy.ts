@@ -15,7 +15,7 @@ import {
 import { lspRequest, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
-import { printError, SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
+import { getCwd, printError, SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
@@ -60,7 +60,7 @@ export class Source extends BaseSource<Params> {
           if (typeof itemParent.isTree === "boolean") {
             return itemParent;
           }
-          const children = await searchChildren(denops, method, itemParent, ctx.bufNr);
+          const children = await searchChildren(denops, method, itemParent, ctx.bufNr, ctx.winId);
           if (children && children.length > 0) {
             itemParent.isTree = true;
             itemParent.data = {
@@ -90,7 +90,14 @@ export class Source extends BaseSource<Params> {
                 ctx.winId,
                 client.offsetEncoding,
               );
-              const items = await prepareCallHierarchy(denops, client, method, params, ctx.bufNr);
+              const items = await prepareCallHierarchy(
+                denops,
+                client,
+                method,
+                params,
+                ctx.bufNr,
+                ctx.winId,
+              );
               if (items && items.length > 0) {
                 const resolvedItems = await Promise.all(items.map(peek));
                 controller.enqueue(resolvedItems);
@@ -127,6 +134,7 @@ async function prepareCallHierarchy(
   method: Method,
   params: TextDocumentPositionParams,
   bufNr: number,
+  winId: number,
 ): Promise<ItemHierarchy[] | undefined> {
   const result = await lspRequest(
     denops,
@@ -146,7 +154,7 @@ async function prepareCallHierarchy(
     }
 
     const context = { bufNr, method, client };
-    const cwd = await fn.getcwd(denops);
+    const cwd = await getCwd(denops, winId);
 
     return callHierarchyItems
       .map((call) => {
@@ -172,6 +180,7 @@ async function searchChildren(
   method: Method,
   itemParent: ItemHierarchy,
   bufNr: number,
+  winId: number,
 ): Promise<ItemHierarchy[] | undefined> {
   const parent = itemParent.data;
   const client = itemParent.action.context.client;
@@ -189,7 +198,7 @@ async function searchChildren(
       return;
     }
 
-    const cwd = await fn.getcwd(denops);
+    const cwd = await getCwd(denops, winId);
 
     return calls.flatMap((call) => {
       const linkItem = isIncomingCall(call) ? call.from : call.to;

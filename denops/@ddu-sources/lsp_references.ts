@@ -10,7 +10,7 @@ import {
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
-import { locationToItem, printError } from "../ddu_source_lsp/util.ts";
+import { getCwd, locationToItem, printError } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
@@ -41,6 +41,7 @@ export class Source extends BaseSource<Params> {
       async start(controller) {
         try {
           const clients = await getClients(denops, clientName, ctx.bufNr);
+          const cwd = await getCwd(denops, ctx.winId);
 
           await Promise.all(clients.map(async (client) => {
             const params = await makePositionParams(
@@ -51,7 +52,7 @@ export class Source extends BaseSource<Params> {
             ) as ReferenceParams;
             params.context = { includeDeclaration };
             const result = await lspRequest(denops, client, method, params, ctx.bufNr);
-            const items = parseResult(result, client, ctx.bufNr, method);
+            const items = parseResult(result, client, ctx.bufNr, method, cwd);
             controller.enqueue(items);
           }));
         } catch (e) {
@@ -76,6 +77,7 @@ function parseResult(
   client: Client,
   bufNr: number,
   method: Method,
+  cwd: string,
 ): Item<ActionData>[] {
   /**
    * Reference:
@@ -89,6 +91,6 @@ function parseResult(
   const context = { client, bufNr, method };
 
   return locations
-    .map((location) => locationToItem(location, context))
+    .map((location) => locationToItem(location, cwd, context))
     .filter(isValidItem);
 }
