@@ -38,35 +38,40 @@ type Params = {
 };
 
 export class Source extends BaseSource<Params> {
-  kind = "file";
+  kind = "lsp";
 
   gather(args: {
     denops: Denops;
     context: Context;
     sourceParams: Params;
   }): ReadableStream<ItemDiagnostic[]> {
-    const { denops, sourceParams: { clientName, buffer }, context } = args;
+    const { denops, sourceParams: { clientName, buffer }, context: ctx } = args;
 
     return new ReadableStream({
       async start(controller) {
         try {
           assertClientName(clientName);
 
-          const buffers = Array.isArray(buffer) ? buffer : [buffer];
+          const context: ItemContext = {
+            client: {
+              name: clientName,
+              offsetEncoding: clientName === "nvim-lsp" ? "utf-8" : "utf-16",
+            },
+            bufNr: ctx.bufNr,
+          };
 
-          const diagnostics = await asyncFlatMap(buffers, async (buffer) => {
-            const bufNr = buffer === 0 ? context.bufNr : buffer;
-            return await getDiagnostic(clientName, denops, bufNr) ?? [];
+          await Promise.resolve(
+            Array.isArray(buffer) ? buffer : [buffer ?? ctx.bufNr],
+          ).then(async (buffers) => {
+            const nested = await Promise.all(
+              buffers.map(async (bufNr) => (await getDiagnostic(clientName, denops, bufNr)) ?? []),
+            );
+            return nested.flat(1);
+          }).then((diagnostics) => {
+            const items = diagnostics.map((diag) => diagnosticToItem(diag, context));
+            sortItemDiagnostic(items);
+            controller.enqueue(items);
           });
-
-          const items = await Promise.all(diagnostics.map(async (diagnostic) => {
-            const item = diagnosticToItem(diagnostic);
-            await addIconAndHighlight(denops, item);
-            return item;
-          }));
-          sortItemDiagnostic(items, context.bufNr);
-
-          controller.enqueue(items);
         } catch (e) {
           printError(denops, e, "lsp_diagnostic");
         } finally {
@@ -235,15 +240,18 @@ async function getVimLspDiagnostics(
   }
 }
 
-function diagnosticToItem(diagnostic: DduDiagnostic): ItemDiagnostic {
+function diagnosticToItem(
+  diagnostic: DduDiagnostic,
+  context: ItemContext,
+): ItemDiagnostic {
   return {
     // Cut to first "\n"
     word: diagnostic.message.split("\n")[0],
     action: {
+      bufNr: diagnostic.bufNr ?? context.bufNr,
       path: diagnostic.path,
-      bufNr: diagnostic.bufNr,
-      lineNr: diagnostic.range.start.line + 1,
-      col: diagnostic.range.start.character + 1,
+      range: diagnostic.range,
+      context,
     },
     data: diagnostic,
   };
@@ -253,22 +261,16 @@ function diagnosticToItem(diagnostic: DduDiagnostic): ItemDiagnostic {
  * Copyright (c) 2020-2021 nvim-telescope
  * https://github.com/nvim-telescope/telescope.nvim/blob/6d3fbffe426794296a77bb0b37b6ae0f4f14f807/lua/telescope/builtin/__diagnostics.lua#L80-L98
  */
-function sortItemDiagnostic(items: ItemDiagnostic[], curBufNr: number) {
+function sortItemDiagnostic(items: ItemDiagnostic[]) {
   items.sort((a, b) => {
-    if (a.action.bufNr && a.action.bufNr === b.action.bufNr) {
+    if (a.action.bufNr === b.action.bufNr) {
       if (a.data.severity === b.data.severity) {
-        return a.action.lineNr - b.action.lineNr;
+        return a.action.range.start.line - b.action.range.start.line;
       } else {
         return (a.data.severity ?? 1) - (b.data.severity ?? 1);
       }
     } else {
-      if (a.action.bufNr === undefined || a.action.bufNr === curBufNr) {
-        return -1;
-      } else if (b.action.bufNr === undefined || b.action.bufNr === curBufNr) {
-        return 1;
-      } else {
-        return a.action.bufNr - b.action.bufNr;
-      }
+      return a.action.bufNr - b.action.bufNr;
     }
   });
 }
