@@ -17,7 +17,7 @@ export function assertClientName(clientName: string): asserts clientName is Clie
 
 export type Client = {
   name: ClientName;
-  id: number | string;
+  id?: number | string;
   offsetEncoding?: OffsetEncoding;
 };
 

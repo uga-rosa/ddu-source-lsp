@@ -38,7 +38,7 @@ export type ActionData =
 export type ItemContext = {
   client: Client;
   bufNr: number;
-  method: Method;
+  method?: Method;
 };
 
 type EnsuredActionData = Required<ActionData>;
@@ -56,10 +56,12 @@ async function ensureAction(
     return action;
   }
 
-  if (action.context.method === "workspace/symbol" && action.range === undefined) {
-    await resolveWorkspaceSymbol(denops, action, item.data as WorkspaceSymbol);
+  if (action.context.client.id !== undefined) {
+    if (action.context.method === "workspace/symbol" && action.range === undefined) {
+      await resolveWorkspaceSymbol(denops, action, item.data as WorkspaceSymbol);
+    }
+    await resolvePath(denops, action);
   }
-  await resolvePath(denops, action);
 
   // At least one of bufNr and path exists
   const bufNr = action.bufNr ?? await fn.bufadd(denops, action.path!);
