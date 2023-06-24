@@ -18,7 +18,7 @@ export async function printError(
   name: string,
 ) {
   const message = e instanceof Error ? e.message : String(e);
-  await denops.call("ddu#util#print_error", `[source-${name}] ${message}`);
+  await denops.call("ddu#util#print_error", `[${name}] ${message}`);
 }
 
 export async function bufNrToFileUri(

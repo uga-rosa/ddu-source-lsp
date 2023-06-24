@@ -111,7 +111,7 @@ export class Source extends BaseSource<Params> {
             }));
           }
         } catch (e) {
-          printError(denops, e, "lsp_callHierarchy");
+          printError(denops, e, "source-lsp_callHierarchy");
         } finally {
           controller.close();
         }

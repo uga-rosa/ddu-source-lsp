@@ -56,7 +56,7 @@ export class Source extends BaseSource<Params> {
             controller.enqueue(items);
           }));
         } catch (e) {
-          printError(denops, e, "lsp_references");
+          printError(denops, e, "source-lsp_references");
         } finally {
           controller.close();
         }

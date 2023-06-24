@@ -47,7 +47,7 @@ export class Source extends BaseSource<Params> {
             controller.enqueue(items);
           }));
         } catch (e) {
-          printError(denops, e, "lsp_documentSymbol");
+          printError(denops, e, "source-lsp_documentSymbol");
         } finally {
           controller.close();
         }

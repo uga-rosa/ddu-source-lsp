@@ -43,7 +43,7 @@ export class Source extends BaseSource<Params> {
             controller.enqueue(items);
           }));
         } catch (e) {
-          printError(denops, e, "lsp_codeAction");
+          printError(denops, e, "source-lsp_codeAction");
         } finally {
           controller.close();
         }

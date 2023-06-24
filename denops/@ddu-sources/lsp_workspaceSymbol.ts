@@ -52,7 +52,7 @@ export class Source extends BaseSource<Params> {
             controller.enqueue(items);
           }));
         } catch (e) {
-          printError(denops, e, "lsp_workspaceSymbol");
+          printError(denops, e, "source-lsp_workspaceSymbol");
         } finally {
           controller.close();
         }
