@@ -11,7 +11,7 @@ import {
 } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
-import { SomePartial, uriToPath } from "../ddu_source_lsp/util.ts";
+import { printError, SomePartial, uriToPath } from "../ddu_source_lsp/util.ts";
 import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
@@ -52,7 +52,7 @@ export class Source extends BaseSource<Params> {
             controller.enqueue(items);
           }));
         } catch (e) {
-          console.error(e);
+          printError(denops, e, "lsp_workspaceSymbol");
         } finally {
           controller.close();
         }

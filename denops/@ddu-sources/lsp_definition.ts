@@ -10,7 +10,7 @@ import {
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams } from "../ddu_source_lsp/params.ts";
-import { locationToItem } from "../ddu_source_lsp/util.ts";
+import { locationToItem, printError } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
@@ -55,7 +55,7 @@ export class Source extends BaseSource<Params> {
             controller.enqueue(items);
           }));
         } catch (e) {
-          console.error(e);
+          printError(denops, e, "lsp_definition");
         } finally {
           controller.close();
         }

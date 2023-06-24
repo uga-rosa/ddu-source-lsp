@@ -10,7 +10,7 @@ import {
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
-import { SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
+import { printError, SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
@@ -108,7 +108,7 @@ export class Source extends BaseSource<Params> {
             }));
           }
         } catch (e) {
-          console.error(e);
+          printError(denops, e, "lsp_typeHierarchy");
         } finally {
           controller.close();
         }

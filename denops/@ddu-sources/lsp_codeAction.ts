@@ -11,7 +11,7 @@ import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeCodeActionParams } from "../ddu_source_lsp/params.ts";
 import { ActionData } from "../@ddu-kinds/lsp_codeAction.ts";
-import { pick } from "../ddu_source_lsp/util.ts";
+import { pick, printError } from "../ddu_source_lsp/util.ts";
 
 type Params = {
   clientName: ClientName;
@@ -43,7 +43,7 @@ export class Source extends BaseSource<Params> {
             controller.enqueue(items);
           }));
         } catch (e) {
-          console.error(e);
+          printError(denops, e, "lsp_codeAction");
         } finally {
           controller.close();
         }

@@ -10,7 +10,7 @@ import {
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
-import { uriToPath } from "../ddu_source_lsp/util.ts";
+import { printError, uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
@@ -47,7 +47,7 @@ export class Source extends BaseSource<Params> {
             controller.enqueue(items);
           }));
         } catch (e) {
-          console.error(e);
+          printError(denops, e, "lsp_documentSymbol");
         } finally {
           controller.close();
         }

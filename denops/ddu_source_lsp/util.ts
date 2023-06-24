@@ -11,6 +11,16 @@ import {
 } from "./deps.ts";
 import { ItemContext } from "../@ddu-kinds/lsp.ts";
 
+// On shared server, console.error is not output to vim's output area.
+export async function printError(
+  denops: Denops,
+  e: unknown,
+  name: string,
+) {
+  const message = e instanceof Error ? e.message : String(e);
+  await denops.call("ddu#util#print_error", `[source-${name}] ${message}`);
+}
+
 export async function bufNrToFileUri(
   denops: Denops,
   bufNr: number,
