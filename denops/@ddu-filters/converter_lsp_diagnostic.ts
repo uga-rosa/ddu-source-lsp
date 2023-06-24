@@ -3,27 +3,13 @@ import {
   Context,
   DduItem,
   Denops,
+  fn,
   fromA,
   relative,
   wrapA,
 } from "../ddu_source_lsp/deps.ts";
 import { ItemDiagnostic, Severity } from "../@ddu-sources/lsp_diagnostic.ts";
 import { bufNrToPath, byteLength, getCwd } from "../ddu_source_lsp/util.ts";
-
-function padding(
-  expr: string | number,
-  length: number,
-  end = false,
-) {
-  const str = expr.toString();
-  if (str.length > length) {
-    return str.slice(0, length - 1) + "…";
-  } else if (end) {
-    return str.padEnd(length, " ");
-  } else {
-    return str.padStart(length, " ");
-  }
-}
 
 const SeverityName = {
   1: "Error",
@@ -74,7 +60,7 @@ export class Filter extends BaseFilter<Params> {
     const lineLength = (Math.max(...lineSet) + 1).toString().length;
     const characterLength = (Math.max(...characterSet) + 1).toString().length;
 
-    return items.map((item) => {
+    return await wrapA(fromA(items)).map(async (item) => {
       if (item.__sourceName !== "lsp_diagnostic") {
         return item;
       }
@@ -83,11 +69,11 @@ export class Filter extends BaseFilter<Params> {
       const severityName = SeverityName[data.severity ?? 1];
 
       const relativePath = relative(cwd, path);
-      const icon = padding(param.iconMap[severityName], iconLength);
+      const icon = await padding(denops, param.iconMap[severityName], iconLength);
       // To prioritize speed, decodePosition() is not used.
       // So, row may not be correct.
-      const lnum = padding(range.start.line + 1, lineLength);
-      const row = padding(range.start.character + 1, characterLength);
+      const lnum = await padding(denops, range.start.line + 1, lineLength);
+      const row = await padding(denops, range.start.character + 1, characterLength);
       const prefix = `${icon} ${lnum}:${row}`;
 
       const hl_group = param.hlGroupMap[severityName];
@@ -110,11 +96,11 @@ export class Filter extends BaseFilter<Params> {
 
       item.display = [
         prefix,
-        padding(item.word, param.columnLength, true),
+        await padding(denops, item.word, param.columnLength, false),
         relativePath,
       ].join(param.separator);
       return item;
-    });
+    }).toArray();
   }
 
   override params(): Params {
@@ -134,5 +120,26 @@ export class Filter extends BaseFilter<Params> {
       columnLength: 50,
       separator: " | ",
     };
+  }
+}
+
+async function padding(
+  denops: Denops,
+  expr: string | number,
+  limitWidth: number,
+  start = true,
+) {
+  const str = expr.toString();
+  const strDisplayWidth = await fn.strdisplaywidth(denops, str);
+  if (strDisplayWidth > limitWidth) {
+    let i = limitWidth - 1;
+    while (await fn.strdisplaywidth(denops, str.slice(0, i)) >= limitWidth) {
+      i--;
+    }
+    return str.slice(0, i) + "…";
+  } else if (start) {
+    return " ".repeat(limitWidth - strDisplayWidth) + str;
+  } else {
+    return str + " ".repeat(limitWidth - strDisplayWidth);
   }
 }
