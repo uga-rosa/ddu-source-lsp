@@ -1,11 +1,11 @@
-import { BaseFilter, DduItem, isLike, SymbolKind } from "../ddu_source_lsp/deps.ts";
+import { BaseFilter, DduItem, is, SymbolKind } from "../ddu_source_lsp/deps.ts";
 
 export class Filter extends BaseFilter<Record<never, never>> {
   filter(args: {
     items: DduItem[];
   }): Promise<DduItem[]> {
     return Promise.resolve(args.items.map((item) => {
-      if (isLike({ data: { kind: 1 } }, item)) {
+      if (is.ObjectOf({ data: is.ObjectOf({ kind: is.Number }) })(item)) {
         const kind = item.data.kind as SymbolKind;
         const kindName = KindName[kind];
         const kindIcon = KindIcon[kindName];

@@ -1,4 +1,4 @@
-export { deadline, deferred } from "https://deno.land/std@0.192.0/async/mod.ts";
+export { deadline, DeadlineError, deferred } from "https://deno.land/std@0.192.0/async/mod.ts";
 export {
   dirname,
   fromFileUrl,
@@ -9,14 +9,14 @@ export {
 export { existsSync } from "https://deno.land/std@0.192.0/fs/mod.ts";
 export { assertEquals } from "https://deno.land/std@0.192.0/testing/asserts.ts";
 
-export type { Denops } from "https://deno.land/x/denops_std@v5.0.0/mod.ts";
-export * as fn from "https://deno.land/x/denops_std@v5.0.0/function/mod.ts";
-export type { MarkInformation } from "https://deno.land/x/denops_std@v5.0.0/function/types.ts";
-export * as op from "https://deno.land/x/denops_std@v5.0.0/option/mod.ts";
-export { batch } from "https://deno.land/x/denops_std@v5.0.0/batch/mod.ts";
-export { register, unregister } from "https://deno.land/x/denops_std@v5.0.0/lambda/mod.ts";
+export type { Denops } from "https://deno.land/x/denops_std@v5.0.1/mod.ts";
+export * as fn from "https://deno.land/x/denops_std@v5.0.1/function/mod.ts";
+export type { MarkInformation } from "https://deno.land/x/denops_std@v5.0.1/function/types.ts";
+export * as op from "https://deno.land/x/denops_std@v5.0.1/option/mod.ts";
+export { batch } from "https://deno.land/x/denops_std@v5.0.1/batch/mod.ts";
+export { register, unregister } from "https://deno.land/x/denops_std@v5.0.1/lambda/mod.ts";
 export { test } from "https://deno.land/x/denops_test@v1.4.0/mod.ts";
-export { ensureObject, isLike } from "https://deno.land/x/unknownutil@v2.1.1/mod.ts";
+export { ensure, is } from "https://deno.land/x/unknownutil@v3.2.0/mod.ts";
 export {
   asyncIteratorFrom as fromA,
   wrapAsyncIterator as wrapA,
@@ -34,7 +34,7 @@ export {
   type PreviewContext,
   type Previewer,
   type SourceOptions,
-} from "https://deno.land/x/ddu_vim@v3.2.1/types.ts";
+} from "https://deno.land/x/ddu_vim@v3.2.7/types.ts";
 
 export type {
   CallHierarchyIncomingCall,

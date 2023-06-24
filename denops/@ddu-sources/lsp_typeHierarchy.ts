@@ -3,7 +3,7 @@ import {
   Context,
   DduItem,
   Denops,
-  isLike,
+  is,
   Item,
   TypeHierarchyItem,
 } from "../ddu_source_lsp/deps.ts";
@@ -80,8 +80,9 @@ export class Source extends BaseSource<Params> {
         try {
           if (args.parent) {
             // called from expandItem
-            if (isLike({ data: { children: [] } }, args.parent)) {
-              const resolvedChildren = await Promise.all(args.parent.data.children.map(peek));
+            if (is.ObjectOf({ data: is.ObjectOf({ children: is.Array }) })(args.parent)) {
+              const children = args.parent.data.children as ItemHierarchy[];
+              const resolvedChildren = await Promise.all(children.map(peek));
               controller.enqueue(resolvedChildren);
             }
           } else {
