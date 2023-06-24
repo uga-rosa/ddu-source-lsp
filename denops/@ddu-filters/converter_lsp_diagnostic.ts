@@ -1,4 +1,12 @@
-import { BaseFilter, Context, DduItem, Denops, relative } from "../ddu_source_lsp/deps.ts";
+import {
+  BaseFilter,
+  Context,
+  DduItem,
+  Denops,
+  fromA,
+  relative,
+  wrapA,
+} from "../ddu_source_lsp/deps.ts";
 import { ItemDiagnostic, Severity } from "../@ddu-sources/lsp_diagnostic.ts";
 import { bufNrToPath, byteLength, getCwd } from "../ddu_source_lsp/util.ts";
 
@@ -17,9 +25,18 @@ function padding(
   }
 }
 
+const SeverityName = {
+  1: "Error",
+  2: "Warning",
+  3: "Info",
+  4: "Hint",
+} as const satisfies Record<Severity, string>;
+
+type SeverityName = typeof SeverityName[Severity];
+
 type Params = {
-  iconMap: Record<Severity, string>;
-  hlGroupMap: Record<Severity, string>;
+  iconMap: Record<SeverityName, string>;
+  hlGroupMap: Record<SeverityName, string>;
   columnLength: number;
   separator: string;
 };
@@ -63,17 +80,17 @@ export class Filter extends BaseFilter<Params> {
       }
       const { action, data } = item as ItemDiagnostic;
       const { bufNr, path = toPath[bufNr], range } = action;
-      const { severity = 1 } = data;
+      const severityName = SeverityName[data.severity ?? 1];
 
       const relativePath = relative(cwd, path);
-      const icon = padding(param.iconMap[severity], iconLength);
+      const icon = padding(param.iconMap[severityName], iconLength);
       // To prioritize speed, decodePosition() is not used.
       // So, row may not be correct.
       const lnum = padding(range.start.line + 1, lineLength);
       const row = padding(range.start.character + 1, characterLength);
       const prefix = `${icon} ${lnum}:${row}`;
 
-      const hl_group = param.hlGroupMap[severity];
+      const hl_group = param.hlGroupMap[severityName];
       if (hl_group) {
         const offset = byteLength(prefix);
         const highlights = item.highlights?.map((hl) => ({
@@ -103,16 +120,16 @@ export class Filter extends BaseFilter<Params> {
   override params(): Params {
     return {
       iconMap: {
-        1: "E",
-        2: "W",
-        3: "I",
-        4: "H",
+        Error: "E",
+        Warning: "W",
+        Info: "I",
+        Hint: "H",
       },
       hlGroupMap: {
-        1: "ErrorMsg",
-        2: "WarningMsg",
-        3: "",
-        4: "",
+        Error: "ErrorMsg",
+        Warning: "WarningMsg",
+        Info: "",
+        Hint: "",
       },
       columnLength: 50,
       separator: " | ",
