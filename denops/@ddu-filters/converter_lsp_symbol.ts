@@ -1,15 +1,30 @@
 import { BaseFilter, DduItem, is, SymbolKind } from "../ddu_source_lsp/deps.ts";
 
-export class Filter extends BaseFilter<Record<never, never>> {
-  filter(args: {
+type Params = {
+  iconMap: Partial<Record<KindName, string>>;
+  hlGroupMap: Partial<Record<KindName, string>>;
+};
+
+export class Filter extends BaseFilter<Params> {
+  override filter(args: {
     items: DduItem[];
+    filterParams: Params;
   }): Promise<DduItem[]> {
+    const iconMap = {
+      DefaultIconMap,
+      ...args.filterParams.iconMap,
+    } as typeof DefaultIconMap;
+    const hlGroupMap = {
+      DefaultHlGroupMap,
+      ...args.filterParams.hlGroupMap,
+    } as typeof DefaultHlGroupMap;
+
     return Promise.resolve(args.items.map((item) => {
       if (is.ObjectOf({ data: is.ObjectOf({ kind: is.Number }) })(item)) {
         const kind = item.data.kind as SymbolKind;
         const kindName = KindName[kind];
-        const kindIcon = KindIcon[kindName];
-        const kindHl = KindHl[kindName];
+        const kindIcon = iconMap[kindName];
+        const kindHl = hlGroupMap[kindName];
         const { word, display = word, highlights = [] } = item;
         if (!display.startsWith(kindIcon)) {
           item.display = `${kindIcon} ${display}`;
@@ -29,8 +44,11 @@ export class Filter extends BaseFilter<Record<never, never>> {
     }));
   }
 
-  params() {
-    return {};
+  override params(): Params {
+    return {
+      iconMap: {},
+      hlGroupMap: {},
+    };
   }
 }
 
@@ -65,7 +83,7 @@ export const KindName = {
 
 export type KindName = typeof KindName[keyof typeof KindName];
 
-const KindIcon = {
+const DefaultIconMap = {
   File: "",
   Module: "",
   Namespace: "",
@@ -94,7 +112,7 @@ const KindIcon = {
   TypeParameter: "",
 } as const satisfies Record<KindName, string>;
 
-const KindHl = {
+const DefaultHlGroupMap = {
   File: "Structure",
   Module: "Structure",
   Namespace: "Structure",
