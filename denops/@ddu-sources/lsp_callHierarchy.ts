@@ -6,7 +6,6 @@ import {
   Context,
   DduItem,
   Denops,
-  fn,
   isLike,
   Item,
   Range,
