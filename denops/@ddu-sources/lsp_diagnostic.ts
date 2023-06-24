@@ -64,8 +64,13 @@ export class Source extends BaseSource<Params> {
             },
             bufNr: ctx.bufNr,
           };
+          const normalizedBuffer = Array.isArray(buffer)
+            ? buffer.map((b) => b === 0 ? ctx.bufNr : b)
+            : buffer === 0
+            ? ctx.bufNr
+            : buffer;
 
-          const diagnostics = await getDiagnostic(denops, clientName, buffer) ?? [];
+          const diagnostics = await getDiagnostic(denops, clientName, normalizedBuffer) ?? [];
           const items = diagnostics.map((diag) => diagnosticToItem(diag, itemContext));
           sortItemDiagnostic(items);
           controller.enqueue(items);
