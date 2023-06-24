@@ -17,10 +17,6 @@ export async function createVirtualBuffer(
   client: Client,
   bufNr: number,
 ) {
-  if (!path.startsWith("deno:")) {
-    return;
-  }
-
   const newBufNr = await fn.bufadd(denops, path);
   await fn.bufload(denops, newBufNr);
   if (!await isEmptyBuffer(denops, newBufNr)) {

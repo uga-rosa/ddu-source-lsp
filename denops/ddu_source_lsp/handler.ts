@@ -16,10 +16,12 @@ export async function resolvePath(
   if (!action.path) {
     return;
   }
-  await createVirtualBuffer(
-    denops,
-    action.path,
-    action.context.client,
-    action.context.bufNr,
-  );
+  if (action.path.startsWith("deno:")) {
+    await createVirtualBuffer(
+      denops,
+      action.path,
+      action.context.client,
+      action.context.bufNr,
+    );
+  }
 }
