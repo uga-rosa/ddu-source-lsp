@@ -16,7 +16,7 @@ import {
   wrapA,
 } from "../ddu_source_lsp/deps.ts";
 
-import { bufNrToPath, hasProps } from "../ddu_source_lsp/util.ts";
+import { bufNrToPath, hasProps, printError } from "../ddu_source_lsp/util.ts";
 import { Client } from "../ddu_source_lsp/client.ts";
 import { Method } from "../ddu_source_lsp/request.ts";
 import { resolvePath } from "../ddu_source_lsp/handler.ts";
@@ -151,7 +151,7 @@ export class Kind extends BaseKind<Params> {
         // Note: Open folds and centering
         await denops.cmd("normal! zvzz");
       }).catch((e) => {
-        console.error(e);
+        printError(denops, e, "kind-lsp");
       });
 
       return ActionFlags.None;
@@ -180,7 +180,7 @@ export class Kind extends BaseKind<Params> {
           await denops.cmd("copen");
         })
         .catch((e) => {
-          console.error(e);
+          printError(denops, e, "kind-lsp");
         });
 
       return ActionFlags.None;

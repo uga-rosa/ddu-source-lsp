@@ -30,6 +30,7 @@ import {
   byteLength,
   isPositionBefore,
   pick,
+  printError,
   toRelative,
   uriToBufNr,
   uriToPath,
@@ -86,7 +87,7 @@ export class Kind extends BaseKind<Params> {
       items: DduItem[];
     }) => {
       if (args.items.length !== 1) {
-        console.log(`Apply should be called on a single item.`);
+        printError(args.denops, `Apply should be called on a single item.`, "kind-lsp_codeAction");
         return ActionFlags.Persist;
       }
       const action = await ensureAction(args.denops, args.items[0]);
@@ -242,13 +243,17 @@ async function renameFile(
 
   if (existsSync(newPath)) {
     if (!change.options?.overwrite || change.options.ignoreIfExists) {
-      console.log(`Rename target ${change.newUri} already exists. Skipping rename.`);
+      printError(
+        denops,
+        `Rename target ${change.newUri} already exists. Skipping rename.`,
+        "kind-lsp_codeAction",
+      );
       return;
     }
     try {
       await Deno.remove(newPath, { recursive: true });
     } catch (e) {
-      console.error(e);
+      printError(denops, e, "kind-lsp_codeAction");
       return;
     }
   }
@@ -262,7 +267,7 @@ async function renameFile(
   try {
     await Deno.rename(oldPath, newPath);
   } catch (e) {
-    console.error(e);
+    printError(denops, e, "kind-lsp_codeAction");
     return;
   }
 
@@ -281,7 +286,11 @@ async function deleteFile(
   const path = uriToPath(change.uri);
   if (!existsSync(path)) {
     if (!change.options?.ignoreIfNotExists) {
-      console.error(`Cannot delete not existing file or directory ${path}`);
+      printError(
+        denops,
+        `Cannot delete not existing file or directory ${path}`,
+        "kind-lsp_codeAction",
+      );
     }
     return;
   }
@@ -289,7 +298,7 @@ async function deleteFile(
   try {
     await Deno.remove(path, { recursive: change.options?.recursive });
   } catch (e) {
-    console.error(e);
+    printError(denops, e, "kind-lsp_codeAction");
     return;
   }
 
