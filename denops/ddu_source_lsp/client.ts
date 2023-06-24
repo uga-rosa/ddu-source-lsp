@@ -40,6 +40,9 @@ async function nvimLspClients(
   denops: Denops,
   bufNr: number,
 ): Promise<Client[]> {
+  if (denops.meta.host === "vim") {
+    throw new Error("Client 'nvim-lsp' is not available in vim");
+  }
   return (await denops.call(
     `luaeval`,
     `require('ddu_nvim_lsp').get_client_by_bufnr(${bufNr})`,
