@@ -11,6 +11,27 @@ import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
 import { assertClientName, ClientName } from "../ddu_source_lsp/client.ts";
 import { bufNrToFileUri, pick, printError, SomeRequired } from "../ddu_source_lsp/util.ts";
 
+type ItemDiagnostic =
+  & Omit<Item, "action" | "data">
+  & {
+    action: SomeRequired<ActionData, "bufNr">;
+    data: DduDiagnostic;
+  };
+
+export type DduDiagnostic = Diagnostic & {
+  bufNr?: number;
+  path?: string;
+};
+
+const Severity = {
+  Error: 1,
+  Warning: 2,
+  Info: 3,
+  Hint: 4,
+} as const satisfies Record<string, number>;
+
+export type Severity = typeof Severity[keyof typeof Severity];
+
 type Params = {
   clientName: ClientName;
   buffer: number | number[] | null;
@@ -62,11 +83,6 @@ export class Source extends BaseSource<Params> {
     };
   }
 }
-
-type DduDiagnostic = Diagnostic & {
-  bufNr?: number;
-  path?: string;
-};
 
 /**
  * Each client may be adding invalid fields on its own, so filter them out.
@@ -218,21 +234,6 @@ async function getVimLspDiagnostics(
       });
   }
 }
-
-const Severity = {
-  Error: 1,
-  Warning: 2,
-  Info: 3,
-  Hint: 4,
-} as const satisfies Record<string, number>;
-
-type Severity = typeof Severity[keyof typeof Severity];
-
-type ItemDiagnostic =
-  & SomeRequired<Item<SomeRequired<ActionDataFile, "col" | "lineNr">>, "action">
-  & {
-    data: DduDiagnostic;
-  };
 
 function diagnosticToItem(diagnostic: DduDiagnostic): ItemDiagnostic {
   return {
