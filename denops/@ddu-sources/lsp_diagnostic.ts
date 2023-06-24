@@ -15,6 +15,7 @@ import {
   printError,
   SomeRequired,
   uriToBufNr,
+  uriToPath,
 } from "../ddu_source_lsp/util.ts";
 
 type ItemDiagnostic =
@@ -26,6 +27,7 @@ type ItemDiagnostic =
 
 export type DduDiagnostic = Diagnostic & {
   bufNr: number;
+  path?: string;
 };
 
 const Severity = {
@@ -200,6 +202,7 @@ async function getCocDiagnostics(
   ).map((diag) => ({
     ...diag,
     bufNr: toBufNr[diag.file],
+    path: diag.file,
     range: diag.location.range,
     severity: Severity[diag.severity],
   }));
@@ -228,6 +231,7 @@ async function getVimLspDiagnostics(
   if (buffer !== null) {
     for (const bufNr of toArray(buffer)) {
       const uri = await bufNrToFileUri(denops, bufNr);
+      const path = uriToPath(uri);
       // {[servername]: VimLspDiagnostic}
       const diagMap = await denops.call(
         `lsp#internal#diagnostics#state#_get_all_diagnostics_grouped_by_server_for_uri`,
@@ -235,7 +239,7 @@ async function getVimLspDiagnostics(
       ) as Record<string, VimLspDiagnostic>;
 
       for (const vimLspDiag of Object.values(diagMap)) {
-        dduDiagnostics.push(...vimLspDiag.params.diagnostics.map((d) => ({ ...d, bufNr })));
+        dduDiagnostics.push(...vimLspDiag.params.diagnostics.map((d) => ({ ...d, bufNr, path })));
       }
     }
   } else {
@@ -246,8 +250,9 @@ async function getVimLspDiagnostics(
 
     for (const [normalized_uri, diagMap] of Object.entries(diagMapMap)) {
       const bufNr = await uriToBufNr(denops, normalized_uri);
+      const path = uriToPath(normalized_uri);
       for (const vimLspDiag of Object.values(diagMap)) {
-        dduDiagnostics.push(...vimLspDiag.params.diagnostics.map((d) => ({ ...d, bufNr })));
+        dduDiagnostics.push(...vimLspDiag.params.diagnostics.map((d) => ({ ...d, bufNr, path })));
       }
     }
   }
