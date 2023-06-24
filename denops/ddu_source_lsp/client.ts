@@ -66,12 +66,10 @@ async function cocClients(
   const activeIds = services
     .filter((service) => service.state === "running" && service.languageIds.includes(filetype))
     .map((service) => service.id);
-  return activeIds.map((id) => {
-    return {
-      name: "coc.nvim",
-      id,
-    };
-  });
+  return activeIds.map((id) => ({
+    name: "coc.nvim",
+    id,
+  }));
 }
 
 async function vimLspClients(
@@ -82,10 +80,8 @@ async function vimLspClients(
     `lsp#get_allowed_servers`,
     bufNr,
   ) as string[];
-  return servers.map((server) => {
-    return {
-      name: "vim-lsp",
-      id: server,
-    };
-  });
+  return servers.map((server) => ({
+    name: "vim-lsp",
+    id: server,
+  }));
 }

@@ -75,16 +75,14 @@ function parseResult(
 
   const context = { client, bufNr, method };
 
-  return codeActions.map((codeAction) => {
-    return {
-      word: codeAction.title,
-      action: {
-        ...isCodeAction(codeAction) ? pick(codeAction, "edit", "command") : { command: codeAction },
-        context,
-      },
-      data: codeAction,
-    };
-  });
+  return codeActions.map((codeAction) => ({
+    word: codeAction.title,
+    action: {
+      ...isCodeAction(codeAction) ? pick(codeAction, "edit", "command") : { command: codeAction },
+      context,
+    },
+    data: codeAction,
+  }));
 }
 
 function isCodeAction(
