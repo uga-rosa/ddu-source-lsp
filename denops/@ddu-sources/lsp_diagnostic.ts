@@ -1,23 +1,15 @@
 import {
-  ActionDataFile,
   BaseSource,
   Context,
   Denops,
   Diagnostic,
-  fn,
   fromFileUrl,
   Item,
   Location,
 } from "../ddu_source_lsp/deps.ts";
+import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
 import { assertClientName, ClientName } from "../ddu_source_lsp/client.ts";
-import {
-  asyncFlatMap,
-  bufNrToFileUri,
-  pick,
-  printError,
-  SomeRequired,
-  toRelative,
-} from "../ddu_source_lsp/util.ts";
+import { bufNrToFileUri, pick, printError, SomeRequired } from "../ddu_source_lsp/util.ts";
 
 type Params = {
   clientName: ClientName;
