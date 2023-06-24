@@ -1,4 +1,13 @@
-import { deadline, deferred, Denops, ensureObject, register, unregister } from "./deps.ts";
+import {
+  deadline,
+  DeadlineError,
+  deferred,
+  Denops,
+  ensure,
+  is,
+  register,
+  unregister,
+} from "./deps.ts";
 import { Client } from "./client.ts";
 
 export const SUPPORTED_METHOD = [
@@ -74,9 +83,8 @@ async function cocRequest(
   try {
     return await denops.call("CocRequest", client.id, method, params);
   } catch {
-    // Unsupported method
+    throw new Error(`Timeouted or unsupprted method: ${method}`);
   }
-  return null;
 }
 
 async function vimLspRequest(
@@ -98,13 +106,16 @@ async function vimLspRequest(
       { server: client.id, request: { method, params }, name: denops.name, id },
     );
     const resolvedData = await deadline(data, 5_000);
-    const { response } = ensureObject(resolvedData);
-    const { result } = ensureObject(response);
+    const { response } = ensure(resolvedData, is.Record);
+    const { result } = ensure(response, is.Record);
     return result;
-  } catch {
-    console.log(`No response from server ${client.id}`);
+  } catch (e) {
+    if (e instanceof DeadlineError) {
+      throw new Error(`No response from server ${client.id}`);
+    } else {
+      throw new Error(`Unsupprted method: ${method}`);
+    }
   } finally {
     unregister(denops, id);
   }
-  return null;
 }
