@@ -1,4 +1,12 @@
-import { BaseFilter, DduItem, is, SymbolKind } from "../ddu_source_lsp/deps.ts";
+import {
+  BaseFilter,
+  DduItem,
+  DocumentSymbol,
+  SymbolInformation,
+  SymbolKind,
+  WorkspaceSymbol,
+} from "../ddu_source_lsp/deps.ts";
+import { byteLength } from "../ddu_source_lsp/util.ts";
 
 type Params = {
   iconMap: Partial<Record<KindName, string>>;
@@ -20,25 +28,29 @@ export class Filter extends BaseFilter<Params> {
     };
 
     return Promise.resolve(args.items.map((item) => {
-      if (is.ObjectOf({ data: is.ObjectOf({ kind: is.Number }) })(item)) {
-        const kind = item.data.kind as SymbolKind;
-        const kindName = KindName[kind];
-        const kindIcon = iconMap[kindName];
-        const kindHl = hlGroupMap[kindName];
-        const { word, display = word, highlights = [] } = item;
-        if (!display.startsWith(kindIcon)) {
-          item.display = `${kindIcon} ${display}`;
-          highlights.forEach((hl) => hl.col += 4);
-          item.highlights = [
-            ...highlights,
-            {
-              name: "lsp-symbol",
-              hl_group: kindHl,
-              col: 1,
-              width: 19, // 3 (icon) + 1 (space) + 15 ([kindName])
-            },
-          ];
-        }
+      if (
+        item.__sourceName !== "lsp_documentSymbol" && item.__sourceName !== "lsp_workspaceSymbol"
+      ) {
+        return item;
+      }
+      const symbol = item.data as SymbolInformation | DocumentSymbol | WorkspaceSymbol;
+      const kind = symbol.kind;
+      const kindName = KindName[kind];
+      const kindIcon = iconMap[kindName];
+      const { word, display = word, highlights = [] } = item;
+      if (!display.startsWith(kindIcon)) {
+        item.display = `${kindIcon} ${display}`;
+        highlights.forEach((hl) => hl.col += 4);
+        const kindHl = hlGroupMap[kindName] ?? "";
+        item.highlights = [
+          ...highlights,
+          {
+            name: "lsp-symbol",
+            hl_group: kindHl,
+            col: 1,
+            width: byteLength(kindIcon) + 16, // x (icon) + 1 (space) + 15 ([kindName])
+          },
+        ];
       }
       return item;
     }));
