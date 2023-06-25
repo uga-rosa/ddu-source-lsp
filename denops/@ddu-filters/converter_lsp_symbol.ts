@@ -11,13 +11,13 @@ export class Filter extends BaseFilter<Params> {
     filterParams: Params;
   }): Promise<DduItem[]> {
     const iconMap = {
-      DefaultIconMap,
+      ...DefaultIconMap,
       ...args.filterParams.iconMap,
-    } as typeof DefaultIconMap;
+    };
     const hlGroupMap = {
-      DefaultHlGroupMap,
+      ...DefaultHlGroupMap,
       ...args.filterParams.hlGroupMap,
-    } as typeof DefaultHlGroupMap;
+    };
 
     return Promise.resolve(args.items.map((item) => {
       if (is.ObjectOf({ data: is.ObjectOf({ kind: is.Number }) })(item)) {
