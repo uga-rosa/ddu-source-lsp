@@ -56,7 +56,9 @@ export class Filter extends BaseFilter<Params> {
       toPath[bufNr] = await bufNrToPath(denops, bufNr);
     }
 
-    const iconLength = Math.max(...Object.values(param.iconMap).map(byteLength));
+    const iconLength = Math.max(
+      ...Object.values(param.iconMap).map(byteLength),
+    );
     const lineLength = (Math.max(...lineSet) + 1).toString().length;
     const characterLength = (Math.max(...characterSet) + 1).toString().length;
 
@@ -69,11 +71,19 @@ export class Filter extends BaseFilter<Params> {
       const severityName = SeverityName[data.severity ?? 1];
 
       const relativePath = relative(cwd, path);
-      const icon = await padding(denops, param.iconMap[severityName], iconLength);
+      const icon = await padding(
+        denops,
+        param.iconMap[severityName],
+        iconLength,
+      );
       // To prioritize speed, decodePosition() is not used.
       // So, row may not be correct.
       const lnum = await padding(denops, range.start.line + 1, lineLength);
-      const row = await padding(denops, range.start.character + 1, characterLength);
+      const row = await padding(
+        denops,
+        range.start.character + 1,
+        characterLength,
+      );
       const prefix = `${icon} ${lnum}:${row}`;
 
       const hl_group = param.hlGroupMap[severityName];

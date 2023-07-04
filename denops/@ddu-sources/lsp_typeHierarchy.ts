@@ -1,12 +1,4 @@
-import {
-  BaseSource,
-  Context,
-  DduItem,
-  Denops,
-  is,
-  Item,
-  TypeHierarchyItem,
-} from "../ddu_source_lsp/deps.ts";
+import { BaseSource, Context, DduItem, Denops, is, Item, LSP } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
@@ -21,7 +13,7 @@ type ItemHierarchy =
   >
   & {
     action: SomeRequired<ActionData, "path" | "range">;
-    data: TypeHierarchyItem & {
+    data: LSP.TypeHierarchyItem & {
       children?: ItemHierarchy[];
     };
   };
@@ -54,9 +46,17 @@ export class Source extends BaseSource<Params> {
         const searchChildren = async (itemParent: ItemHierarchy) => {
           const parent = itemParent.data;
           const client = itemParent.action.context.client;
-          const result = await lspRequest(denops, client, method, { item: parent }, ctx.bufNr);
+          const result = await lspRequest(denops, client, method, {
+            item: parent,
+          }, ctx.bufNr);
           if (result) {
-            return typeHierarchiesToItems(result, client, ctx.bufNr, method, itemParent);
+            return typeHierarchiesToItems(
+              result,
+              client,
+              ctx.bufNr,
+              method,
+              itemParent,
+            );
           }
         };
 
@@ -80,7 +80,11 @@ export class Source extends BaseSource<Params> {
         try {
           if (args.parent) {
             // called from expandItem
-            if (is.ObjectOf({ data: is.ObjectOf({ children: is.Array }) })(args.parent)) {
+            if (
+              is.ObjectOf({ data: is.ObjectOf({ children: is.Array }) })(
+                args.parent,
+              )
+            ) {
               const children = args.parent.data.children as ItemHierarchy[];
               const resolvedChildren = await Promise.all(children.map(peek));
               controller.enqueue(resolvedChildren);
@@ -95,14 +99,25 @@ export class Source extends BaseSource<Params> {
                 ctx.winId,
                 client.offsetEncoding,
               );
-              const items = await prepareTypeHierarchy(denops, client, method, params, ctx.bufNr);
+              const items = await prepareTypeHierarchy(
+                denops,
+                client,
+                method,
+                params,
+                ctx.bufNr,
+              );
               if (items && items.length > 0) {
                 const resolvedItems = await Promise.all(items.map(peek));
                 controller.enqueue(resolvedItems);
 
-                if (autoExpandSingle && items.length === 1 && items[0].data.children) {
+                if (
+                  autoExpandSingle && items.length === 1 &&
+                  items[0].data.children
+                ) {
                   items[0].isExpanded = true;
-                  const children = await Promise.all(items[0].data.children.map(peek));
+                  const children = await Promise.all(
+                    items[0].data.children.map(peek),
+                  );
                   controller.enqueue(children);
                 }
               }
@@ -158,7 +173,7 @@ function typeHierarchiesToItems(
    * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#typeHierarchy_supertypes
    * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#typeHierarchy_subtypes
    */
-  const typeHierarchyItems = result as TypeHierarchyItem[] | null;
+  const typeHierarchyItems = result as LSP.TypeHierarchyItem[] | null;
   if (!typeHierarchyItems) {
     return [];
   }
@@ -171,7 +186,7 @@ function typeHierarchiesToItems(
 }
 
 function typeHierarchyToItem(
-  typeHierarchyItem: TypeHierarchyItem,
+  typeHierarchyItem: LSP.TypeHierarchyItem,
   context: ItemContext,
   itemParent?: ItemHierarchy,
 ): ItemHierarchy {

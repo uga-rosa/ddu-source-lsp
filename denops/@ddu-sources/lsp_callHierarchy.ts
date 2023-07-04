@@ -1,14 +1,11 @@
 import {
   BaseSource,
-  CallHierarchyIncomingCall,
-  CallHierarchyItem,
-  CallHierarchyOutgoingCall,
   Context,
   DduItem,
   Denops,
   is,
   Item,
-  Range,
+  LSP,
   relative,
 } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, Method } from "../ddu_source_lsp/request.ts";
@@ -25,7 +22,7 @@ type ItemHierarchy =
   >
   & {
     action: SomeRequired<ActionData, "path" | "range">;
-    data: CallHierarchyItem & {
+    data: LSP.CallHierarchyItem & {
       children?: ItemHierarchy[];
     };
   };
@@ -59,7 +56,13 @@ export class Source extends BaseSource<Params> {
           if (typeof itemParent.isTree === "boolean") {
             return itemParent;
           }
-          const children = await searchChildren(denops, method, itemParent, ctx.bufNr, ctx.winId);
+          const children = await searchChildren(
+            denops,
+            method,
+            itemParent,
+            ctx.bufNr,
+            ctx.winId,
+          );
           if (children && children.length > 0) {
             itemParent.isTree = true;
             itemParent.data = {
@@ -75,7 +78,11 @@ export class Source extends BaseSource<Params> {
         try {
           if (args.parent) {
             // called from expandItem
-            if (is.ObjectOf({ data: is.ObjectOf({ children: is.Array }) })(args.parent)) {
+            if (
+              is.ObjectOf({ data: is.ObjectOf({ children: is.Array }) })(
+                args.parent,
+              )
+            ) {
               const children = args.parent.data.children as ItemHierarchy[];
               const resolvedChildren = await Promise.all(children.map(peek));
               controller.enqueue(resolvedChildren);
@@ -102,9 +109,14 @@ export class Source extends BaseSource<Params> {
                 const resolvedItems = await Promise.all(items.map(peek));
                 controller.enqueue(resolvedItems);
 
-                if (autoExpandSingle && items.length === 1 && items[0].data.children) {
+                if (
+                  autoExpandSingle && items.length === 1 &&
+                  items[0].data.children
+                ) {
                   items[0].isExpanded = true;
-                  const children = await Promise.all(items[0].data.children.map(peek));
+                  const children = await Promise.all(
+                    items[0].data.children.map(peek),
+                  );
                   controller.enqueue(children);
                 }
               }
@@ -148,7 +160,7 @@ async function prepareCallHierarchy(
      * Reference:
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_prepareCallHierarchy
      */
-    const callHierarchyItems = result as CallHierarchyItem[] | null;
+    const callHierarchyItems = result as LSP.CallHierarchyItem[] | null;
     if (!callHierarchyItems) {
       return;
     }
@@ -184,7 +196,13 @@ async function searchChildren(
 ): Promise<ItemHierarchy[] | undefined> {
   const parent = itemParent.data;
   const client = itemParent.action.context.client;
-  const result = await lspRequest(denops, client, method, { item: parent }, bufNr);
+  const result = await lspRequest(
+    denops,
+    client,
+    method,
+    { item: parent },
+    bufNr,
+  );
   if (result) {
     /**
      * References:
@@ -193,7 +211,9 @@ async function searchChildren(
      *
      * Actually, it's CallHierarchyIncomingCall[] | CallHierarchyOutgoingCall[], but tsc is an idiot, so the inference must be this to make it work.
      */
-    const calls = result as (CallHierarchyIncomingCall | CallHierarchyOutgoingCall)[] | null;
+    const calls = result as
+      | (LSP.CallHierarchyIncomingCall | LSP.CallHierarchyOutgoingCall)[]
+      | null;
     if (!calls) {
       return;
     }
@@ -224,8 +244,8 @@ async function searchChildren(
 }
 
 function isIncomingCall(
-  call: CallHierarchyIncomingCall | CallHierarchyOutgoingCall,
-): call is CallHierarchyIncomingCall {
+  call: LSP.CallHierarchyIncomingCall | LSP.CallHierarchyOutgoingCall,
+): call is LSP.CallHierarchyIncomingCall {
   return "from" in call;
 }
 
@@ -248,7 +268,7 @@ function deduplicate<T>(
 }
 
 function hashRange(
-  range: Range,
+  range: LSP.Range,
 ): string {
   return `${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
 }

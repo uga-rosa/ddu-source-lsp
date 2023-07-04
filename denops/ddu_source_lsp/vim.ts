@@ -2,7 +2,7 @@
  * All coordinates are (0, 0)-indexed
  */
 
-import { batch, Denops, fn, MarkInformation, Position, Range } from "./deps.ts";
+import { batch, Denops, fn, LSP, MarkInformation } from "./deps.ts";
 import { isPositionBefore, sliceByByteIndex } from "./util.ts";
 
 export async function getBufLine(
@@ -10,14 +10,18 @@ export async function getBufLine(
   bufNr: number,
   line: number, // -1 means last line ("$")
 ): Promise<string> {
-  const lines = await fn.getbufline(denops, bufNr, line === -1 ? "$" : line + 1);
+  const lines = await fn.getbufline(
+    denops,
+    bufNr,
+    line === -1 ? "$" : line + 1,
+  );
   return lines[0];
 }
 
 export async function getCursor(
   denops: Denops,
   winId: number,
-): Promise<Position> {
+): Promise<LSP.Position> {
   const [, lnum, col] = await fn.getcurpos(denops, winId);
   return { line: lnum - 1, character: col - 1 };
 }
@@ -25,7 +29,7 @@ export async function getCursor(
 export async function selectRange(
   denops: Denops,
   winId: number,
-): Promise<Range> {
+): Promise<LSP.Range> {
   const curWinId = await fn.win_getid(denops);
   await denops.cmd(`noautocmd call win_gotoid(${winId})`);
   // In normal mode, both 'v' and '.' mark positions will be the cursor position.
@@ -43,7 +47,7 @@ export async function selectRange(
 export async function setCursor(
   denops: Denops,
   winId: number,
-  position: Position,
+  position: LSP.Position,
 ) {
   const { line, character } = position;
 
@@ -125,7 +129,7 @@ export async function bufLineCount(
 export async function bufSetText(
   denops: Denops,
   bufNr: number,
-  range: Range,
+  range: LSP.Range,
   texts: string[],
 ) {
   if (denops.meta.host === "nvim") {
@@ -145,7 +149,12 @@ export async function bufSetText(
     const after = sliceByByteIndex(endLine, range.end.character);
     texts[0] = before + texts[0];
     texts[texts.length - 1] += after;
-    await fn.deletebufline(denops, bufNr, range.start.line + 1, range.end.line + 1);
+    await fn.deletebufline(
+      denops,
+      bufNr,
+      range.start.line + 1,
+      range.end.line + 1,
+    );
     await fn.appendbufline(denops, bufNr, range.start.line, texts);
   }
 }

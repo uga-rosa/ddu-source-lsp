@@ -1,11 +1,4 @@
-import {
-  BaseFilter,
-  DduItem,
-  DocumentSymbol,
-  SymbolInformation,
-  SymbolKind,
-  WorkspaceSymbol,
-} from "../ddu_source_lsp/deps.ts";
+import { BaseFilter, DduItem, LSP } from "../ddu_source_lsp/deps.ts";
 import { byteLength } from "../ddu_source_lsp/util.ts";
 
 type Params = {
@@ -29,11 +22,15 @@ export class Filter extends BaseFilter<Params> {
 
     return Promise.resolve(args.items.map((item) => {
       if (
-        item.__sourceName !== "lsp_documentSymbol" && item.__sourceName !== "lsp_workspaceSymbol"
+        item.__sourceName !== "lsp_documentSymbol" &&
+        item.__sourceName !== "lsp_workspaceSymbol"
       ) {
         return item;
       }
-      const symbol = item.data as SymbolInformation | DocumentSymbol | WorkspaceSymbol;
+      const symbol = item.data as
+        | LSP.SymbolInformation
+        | LSP.DocumentSymbol
+        | LSP.WorkspaceSymbol;
       const kind = symbol.kind;
       const kindName = KindName[kind];
       const kindIcon = iconMap[kindName];
@@ -91,7 +88,7 @@ export const KindName = {
   24: "Event",
   25: "Operator",
   26: "TypeParameter",
-} as const satisfies Record<SymbolKind, string>;
+} as const satisfies Record<LSP.SymbolKind, string>;
 
 export type KindName = typeof KindName[keyof typeof KindName];
 

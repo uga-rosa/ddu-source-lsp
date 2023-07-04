@@ -4,10 +4,8 @@ import {
   DduItem,
   Denops,
   Item,
-  Location,
+  LSP,
   SourceOptions,
-  SymbolInformation,
-  WorkspaceSymbol,
 } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
@@ -47,7 +45,13 @@ export class Source extends BaseSource<Params> {
             query: sourceOptions.volatile ? args.input : query,
           };
           await Promise.all(clients.map(async (client) => {
-            const result = await lspRequest(denops, client, method, params, ctx.bufNr);
+            const result = await lspRequest(
+              denops,
+              client,
+              method,
+              params,
+              ctx.bufNr,
+            );
             const items = parseResult(result, client, ctx.bufNr, method);
             controller.enqueue(items);
           }));
@@ -78,7 +82,10 @@ function parseResult(
    * Reference:
    * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbol
    */
-  const symbols = result as SymbolInformation[] | WorkspaceSymbol[] | null;
+  const symbols = result as
+    | LSP.SymbolInformation[]
+    | LSP.WorkspaceSymbol[]
+    | null;
   if (!symbols) {
     return [];
   }
@@ -105,7 +112,7 @@ function parseResult(
 export async function resolveWorkspaceSymbol(
   denops: Denops,
   action: ActionWorkspaceSymbol,
-  symbol: WorkspaceSymbol,
+  symbol: LSP.WorkspaceSymbol,
 ) {
   const resolvedSymbol = await lspRequest(
     denops,
@@ -120,7 +127,7 @@ export async function resolveWorkspaceSymbol(
     /**
      * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_symbolResolve
      */
-    const workspaceSymbol = resolvedSymbol as WorkspaceSymbol;
-    action.range = (workspaceSymbol.location as Location).range;
+    const workspaceSymbol = resolvedSymbol as LSP.WorkspaceSymbol;
+    action.range = (workspaceSymbol.location as LSP.Location).range;
   }
 }

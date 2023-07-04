@@ -9,7 +9,9 @@ export const CLIENT_NAME = [
 
 export type ClientName = typeof CLIENT_NAME[number];
 
-export function assertClientName(clientName: string): asserts clientName is ClientName {
+export function assertClientName(
+  clientName: string,
+): asserts clientName is ClientName {
   if (!CLIENT_NAME.some((name) => clientName === name)) {
     throw new Error(`Unknown client name: ${clientName}`);
   }

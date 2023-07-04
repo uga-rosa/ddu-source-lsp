@@ -1,4 +1,4 @@
-import { Denops, Position } from "./deps.ts";
+import { Denops, LSP } from "./deps.ts";
 import { sliceByByteIndex } from "./util.ts";
 import * as vim from "./vim.ts";
 
@@ -35,9 +35,9 @@ export type OffsetEncoding = typeof OFFSET_ENCODING[number];
 export async function encodeUtfPosition(
   denops: Denops,
   bufNr: number,
-  bytePosition: Position,
+  bytePosition: LSP.Position,
   offsetEncoding: OffsetEncoding = "utf-16",
-): Promise<Position> {
+): Promise<LSP.Position> {
   if (offsetEncoding === "utf-8") {
     return bytePosition;
   } else {
@@ -97,9 +97,9 @@ function codePointToUtf8ByteSize(
 export async function decodeUtfPosition(
   denops: Denops,
   bufNr: number,
-  utfPosition: Position,
+  utfPosition: LSP.Position,
   offsetEncoding: OffsetEncoding = "utf-16",
-): Promise<Position> {
+): Promise<LSP.Position> {
   if (offsetEncoding === "utf-8") {
     return utfPosition;
   } else {
@@ -138,7 +138,7 @@ function toByteIndex(
 export async function toUtf16Position(
   denops: Denops,
   bufNr: number,
-  utfPosition: Position,
+  utfPosition: LSP.Position,
   offsetEncoding: OffsetEncoding = "utf-16",
 ) {
   if (offsetEncoding === "utf-16") {

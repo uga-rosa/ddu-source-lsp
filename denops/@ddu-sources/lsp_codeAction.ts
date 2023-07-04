@@ -1,12 +1,4 @@
-import {
-  BaseSource,
-  CodeAction,
-  Command,
-  Context,
-  DduItem,
-  Denops,
-  Item,
-} from "../ddu_source_lsp/deps.ts";
+import { BaseSource, Context, DduItem, Denops, Item, LSP } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeCodeActionParams } from "../ddu_source_lsp/params.ts";
@@ -37,8 +29,19 @@ export class Source extends BaseSource<Params> {
           const clients = await getClients(denops, clientName, ctx.bufNr);
 
           await Promise.all(clients.map(async (client) => {
-            const params = await makeCodeActionParams(denops, ctx.bufNr, ctx.winId, client);
-            const result = await lspRequest(denops, client, method, params, ctx.bufNr);
+            const params = await makeCodeActionParams(
+              denops,
+              ctx.bufNr,
+              ctx.winId,
+              client,
+            );
+            const result = await lspRequest(
+              denops,
+              client,
+              method,
+              params,
+              ctx.bufNr,
+            );
             const items = parseResult(result, client, ctx.bufNr, method);
             controller.enqueue(items);
           }));
@@ -68,7 +71,7 @@ function parseResult(
    * Reference:
    * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_codeAction
    */
-  const codeActions = result as (Command | CodeAction)[] | null;
+  const codeActions = result as (LSP.Command | LSP.CodeAction)[] | null;
   if (!codeActions) {
     return [];
   }
@@ -86,7 +89,7 @@ function parseResult(
 }
 
 function isCodeAction(
-  codeAction: Command | CodeAction,
-): codeAction is CodeAction {
+  codeAction: LSP.Command | LSP.CodeAction,
+): codeAction is LSP.CodeAction {
   return typeof codeAction.command !== "string";
 }

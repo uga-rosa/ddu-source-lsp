@@ -1,14 +1,4 @@
-import {
-  Denops,
-  fn,
-  fromFileUrl,
-  isAbsolute,
-  Location,
-  LocationLink,
-  Position,
-  relative,
-  toFileUrl,
-} from "./deps.ts";
+import { Denops, fn, fromFileUrl, isAbsolute, LSP, relative, toFileUrl } from "./deps.ts";
 import { ItemContext } from "../@ddu-kinds/lsp.ts";
 
 // On shared server, console.error is not output to vim's output area.
@@ -55,7 +45,7 @@ export function uriToPath(uri: string) {
 }
 
 export function locationToItem(
-  location: Location | LocationLink,
+  location: LSP.Location | LSP.LocationLink,
   cwd: string,
   context: ItemContext,
 ) {
@@ -73,9 +63,13 @@ export function locationToItem(
   };
 }
 
-export type SomeRequired<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+export type SomeRequired<T, K extends keyof T> =
+  & Omit<T, K>
+  & Required<Pick<T, K>>;
 
-export type SomePartial<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+export type SomePartial<T, K extends keyof T> =
+  & Omit<T, K>
+  & Partial<Pick<T, K>>;
 
 export async function asyncFlatMap<Item, Res>(
   arr: Item[],
@@ -89,8 +83,8 @@ export async function asyncFlatMap<Item, Res>(
  * Returns true if position 'a' is before or at the same position as 'b'.
  */
 export function isPositionBefore(
-  a: Position,
-  b: Position,
+  a: LSP.Position,
+  b: LSP.Position,
 ): boolean {
   return a.line < b.line ||
     (a.line === b.line && a.character <= b.character);

@@ -1,12 +1,4 @@
-import {
-  BaseSource,
-  Context,
-  Denops,
-  Diagnostic,
-  fn,
-  Item,
-  Location,
-} from "../ddu_source_lsp/deps.ts";
+import { BaseSource, Context, Denops, fn, Item, LSP } from "../ddu_source_lsp/deps.ts";
 import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
 import { assertClientName, ClientName } from "../ddu_source_lsp/client.ts";
 import {
@@ -25,7 +17,7 @@ export type ItemDiagnostic =
     data: DduDiagnostic;
   };
 
-export type DduDiagnostic = Diagnostic & {
+export type DduDiagnostic = LSP.Diagnostic & {
   bufNr: number;
   path?: string;
 };
@@ -100,7 +92,7 @@ export async function getProperDiagnostics(
   clientName: ClientName,
   denops: Denops,
   bufNr: number | null,
-): Promise<Diagnostic[]> {
+): Promise<LSP.Diagnostic[]> {
   const dduDiagnostics = await getDiagnostic(denops, clientName, bufNr);
   return dduDiagnostics?.map((diag) => {
     return pick(
@@ -134,13 +126,15 @@ async function getDiagnostic(
   }
 }
 
-type NvimLspDiagnostic = Pick<Diagnostic, "message" | "severity" | "source" | "code"> & {
-  bufnr: number;
-  lnum: number;
-  end_lnum: number;
-  col: number;
-  end_col: number;
-};
+type NvimLspDiagnostic =
+  & Pick<LSP.Diagnostic, "message" | "severity" | "source" | "code">
+  & {
+    bufnr: number;
+    lnum: number;
+    end_lnum: number;
+    col: number;
+    end_col: number;
+  };
 
 async function getNvimLspDiagnostics(
   denops: Denops,
@@ -173,9 +167,9 @@ async function getNvimLspDiagnostics(
     }));
 }
 
-type CocDiagnostic = Pick<Diagnostic, "message" | "source" | "code"> & {
+type CocDiagnostic = Pick<LSP.Diagnostic, "message" | "source" | "code"> & {
   file: string;
-  location: Location;
+  location: LSP.Location;
   severity: keyof typeof Severity;
 };
 
@@ -219,7 +213,7 @@ function toArray<T>(x: T | T[]): T[] {
 type VimLspDiagnostic = {
   params: {
     uri: string;
-    diagnostics: Diagnostic[];
+    diagnostics: LSP.Diagnostic[];
   };
 };
 
@@ -239,7 +233,9 @@ async function getVimLspDiagnostics(
       ) as Record<string, VimLspDiagnostic>;
 
       for (const vimLspDiag of Object.values(diagMap)) {
-        dduDiagnostics.push(...vimLspDiag.params.diagnostics.map((d) => ({ ...d, bufNr, path })));
+        dduDiagnostics.push(
+          ...vimLspDiag.params.diagnostics.map((d) => ({ ...d, bufNr, path })),
+        );
       }
     }
   } else {
@@ -252,7 +248,9 @@ async function getVimLspDiagnostics(
       const bufNr = await uriToBufNr(denops, normalized_uri);
       const path = uriToPath(normalized_uri);
       for (const vimLspDiag of Object.values(diagMap)) {
-        dduDiagnostics.push(...vimLspDiag.params.diagnostics.map((d) => ({ ...d, bufNr, path })));
+        dduDiagnostics.push(
+          ...vimLspDiag.params.diagnostics.map((d) => ({ ...d, bufNr, path })),
+        );
       }
     }
   }

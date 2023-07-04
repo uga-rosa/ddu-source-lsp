@@ -2,12 +2,8 @@ import {
   ActionFlags,
   Actions,
   BaseKind,
-  CodeAction,
-  Command,
   Context,
-  CreateFile,
   DduItem,
-  DeleteFile,
   Denops,
   dirname,
   existsSync,
@@ -15,13 +11,10 @@ import {
   fromA,
   fromFileUrl,
   jsdiff,
+  LSP,
   op,
   PreviewContext,
   Previewer,
-  RenameFile,
-  TextDocumentEdit,
-  TextEdit,
-  WorkspaceEdit,
   wrapA,
 } from "../ddu_source_lsp/deps.ts";
 import { ItemContext } from "./lsp.ts";
@@ -44,8 +37,8 @@ import {
 import { lspRequest } from "../ddu_source_lsp/request.ts";
 
 export type ActionData = {
-  edit?: WorkspaceEdit;
-  command?: Command;
+  edit?: LSP.WorkspaceEdit;
+  command?: LSP.Command;
   context: Omit<ItemContext, "method">;
   resolved?: boolean;
 };
@@ -67,7 +60,7 @@ async function ensureAction(
         "codeAction/resolve",
         item.data,
         action.context.bufNr,
-      ) as CodeAction | null;
+      ) as LSP.CodeAction | null;
       action.edit = resolvedCodeAction?.edit;
     } finally {
       action.resolved = true;
@@ -87,13 +80,21 @@ export class Kind extends BaseKind<Params> {
       items: DduItem[];
     }) => {
       if (args.items.length !== 1) {
-        printError(args.denops, `Apply should be called on a single item.`, "kind-lsp_codeAction");
+        printError(
+          args.denops,
+          `Apply should be called on a single item.`,
+          "kind-lsp_codeAction",
+        );
         return ActionFlags.Persist;
       }
       const action = await ensureAction(args.denops, args.items[0]);
 
       if (action.edit) {
-        await applyWorkspaceEdit(args.denops, action.edit, action.context.client.offsetEncoding);
+        await applyWorkspaceEdit(
+          args.denops,
+          action.edit,
+          action.context.client.offsetEncoding,
+        );
       }
       if (action.command) {
         await lspRequest(
@@ -138,8 +139,14 @@ export class Kind extends BaseKind<Params> {
                 `+++ b/${path}`,
               ];
             } else if (change.kind === "rename") {
-              const oldPath = await toRelative(denops, fromFileUrl(change.oldUri));
-              const newPath = await toRelative(denops, fromFileUrl(change.newUri));
+              const oldPath = await toRelative(
+                denops,
+                fromFileUrl(change.oldUri),
+              );
+              const newPath = await toRelative(
+                denops,
+                fromFileUrl(change.newUri),
+              );
               return [
                 `diff --code-action a/${oldPath} b/${newPath}`,
                 `rename from ${oldPath}`,
@@ -169,7 +176,12 @@ export class Kind extends BaseKind<Params> {
         const patch = await wrapA(fromA(Object.entries(action.edit.changes)))
           .map(async ([uri, textEdits]) => {
             const bufNr = await uriToBufNr(denops, uri);
-            return await createPatchFromTextEdit(denops, textEdits, bufNr, offsetEncoding);
+            return await createPatchFromTextEdit(
+              denops,
+              textEdits,
+              bufNr,
+              offsetEncoding,
+            );
           })
           .reduce((acc, patch) => [...acc, ...patch, ""], [] as string[]);
 
@@ -182,7 +194,9 @@ export class Kind extends BaseKind<Params> {
     } else if (action.command) {
       return {
         kind: "nofile",
-        contents: [`Command: ${action.command.title} (${action.command.command})`],
+        contents: [
+          `Command: ${action.command.title} (${action.command.command})`,
+        ],
       };
     }
   }
@@ -194,7 +208,7 @@ export class Kind extends BaseKind<Params> {
 
 async function applyWorkspaceEdit(
   denops: Denops,
-  workspaceEdit: WorkspaceEdit,
+  workspaceEdit: LSP.WorkspaceEdit,
   offsetEncoding?: OffsetEncoding,
 ) {
   if (workspaceEdit.documentChanges) {
@@ -224,10 +238,13 @@ async function applyWorkspaceEdit(
 
 async function createFile(
   denops: Denops,
-  change: CreateFile,
+  change: LSP.CreateFile,
 ) {
   const path = uriToPath(change.uri);
-  if (!existsSync(path) || (change.options?.overwrite || !change.options?.ignoreIfExists)) {
+  if (
+    !existsSync(path) ||
+    (change.options?.overwrite || !change.options?.ignoreIfExists)
+  ) {
     await Deno.mkdir(dirname(path), { recursive: true });
     await Deno.create(path);
   }
@@ -236,7 +253,7 @@ async function createFile(
 
 async function renameFile(
   denops: Denops,
-  change: RenameFile,
+  change: LSP.RenameFile,
 ) {
   const oldPath = uriToPath(change.oldUri);
   const newPath = uriToPath(change.newUri);
@@ -274,14 +291,16 @@ async function renameFile(
   await Promise.all(oldBufinfo.map(async (info) => {
     const newFilePath = info.name.replace(oldPath, newPath);
     const bufNr = await fn.bufadd(denops, newFilePath);
-    await Promise.all(info.windows.map((winId) => vim.winSetBuf(denops, winId, bufNr)));
+    await Promise.all(
+      info.windows.map((winId) => vim.winSetBuf(denops, winId, bufNr)),
+    );
     await vim.bufDelete(denops, info.bufnr);
   }));
 }
 
 async function deleteFile(
   denops: Denops,
-  change: DeleteFile,
+  change: LSP.DeleteFile,
 ) {
   const path = uriToPath(change.uri);
   if (!existsSync(path)) {
@@ -308,7 +327,7 @@ async function deleteFile(
 
 async function applyTextDocumentEdit(
   denops: Denops,
-  change: TextDocumentEdit,
+  change: LSP.TextDocumentEdit,
   offsetEncoding?: OffsetEncoding,
 ) {
   // Limitation: document version is not supported.
@@ -319,7 +338,7 @@ async function applyTextDocumentEdit(
 
 async function applyTextEdit(
   denops: Denops,
-  textEdits: TextEdit[],
+  textEdits: LSP.TextEdit[],
   bufNr: number,
   offsetEncoding?: OffsetEncoding,
 ) {
@@ -344,7 +363,8 @@ async function applyTextEdit(
 
   // Some LSP servers are depending on the VSCode behavior.
   // The VSCode will re-locate the cursor position after applying TextEdit so we also do it.
-  const cursor = bufNr === (await fn.bufnr(denops)) && (await vim.getCursor(denops, 0));
+  const cursor = bufNr === (await fn.bufnr(denops)) &&
+    (await vim.getCursor(denops, 0));
 
   // Save and restore local marks since they get deleted by vim.bufSetText()
   const marks = (await fn.getmarklist(denops, bufNr))
@@ -362,8 +382,18 @@ async function applyTextEdit(
       await fn.appendbufline(denops, bufNr, "$", texts);
     } else {
       const vimRange = {
-        start: await decodeUtfPosition(denops, bufNr, textEdit.range.start, offsetEncoding),
-        end: await decodeUtfPosition(denops, bufNr, textEdit.range.end, offsetEncoding),
+        start: await decodeUtfPosition(
+          denops,
+          bufNr,
+          textEdit.range.start,
+          offsetEncoding,
+        ),
+        end: await decodeUtfPosition(
+          denops,
+          bufNr,
+          textEdit.range.end,
+          offsetEncoding,
+        ),
       };
       const lastLine = await vim.getBufLine(
         denops,
@@ -390,9 +420,11 @@ async function applyTextEdit(
 
       // Fix cursor position
       if (cursor && isPositionBefore(vimRange.end, cursor)) {
-        cursor.line += texts.length - (vimRange.end.line - vimRange.start.line + 1);
+        cursor.line += texts.length -
+          (vimRange.end.line - vimRange.start.line + 1);
         if (cursor.line === vimRange.end.line) {
-          cursor.character += texts[texts.length - 1].length - vimRange.end.character;
+          cursor.character += texts[texts.length - 1].length -
+            vimRange.end.character;
           if (texts.length === 1) {
             cursor.character += vimRange.start.character;
           }
@@ -403,7 +435,9 @@ async function applyTextEdit(
   const lineCount = await vim.bufLineCount(denops, bufNr);
 
   // No need to restore marks that still exist
-  const remainMarkSet = new Set((await fn.getmarklist(denops, bufNr)).map((info) => info.mark));
+  const remainMarkSet = new Set(
+    (await fn.getmarklist(denops, bufNr)).map((info) => info.mark),
+  );
   await wrapA(fromA(marks))
     .filter((info) => !remainMarkSet.has(info.mark))
     .map(async (info) => {
@@ -421,7 +455,8 @@ async function applyTextEdit(
   if (
     cursor &&
     cursor.line + 1 <= lineCount &&
-    cursor.character + 1 < byteLength(await vim.getBufLine(denops, bufNr, cursor.line))
+    cursor.character + 1 <
+      byteLength(await vim.getBufLine(denops, bufNr, cursor.line))
   ) {
     await vim.setCursor(denops, 0, cursor);
   }
@@ -429,7 +464,8 @@ async function applyTextEdit(
   // Remove final line if needed
   if (
     (await op.endofline.getBuffer(denops, bufNr)) ||
-    (await op.fixendofline.getBuffer(denops, bufNr) && !(await op.binary.getBuffer(denops, bufNr)))
+    (await op.fixendofline.getBuffer(denops, bufNr) &&
+      !(await op.binary.getBuffer(denops, bufNr)))
   ) {
     const lastLine = await vim.getBufLine(denops, bufNr, -1);
     if (lastLine === "") {
@@ -440,18 +476,23 @@ async function applyTextEdit(
 
 async function createPatchFromTextDocumentEdit(
   denops: Denops,
-  change: TextDocumentEdit,
+  change: LSP.TextDocumentEdit,
   offsetEncoding?: OffsetEncoding,
 ) {
   // Limitation: document version is not supported.
   const path = uriToPath(change.textDocument.uri);
   const bufNr = await fn.bufadd(denops, path);
-  return await createPatchFromTextEdit(denops, change.edits, bufNr, offsetEncoding);
+  return await createPatchFromTextEdit(
+    denops,
+    change.edits,
+    bufNr,
+    offsetEncoding,
+  );
 }
 
 async function createPatchFromTextEdit(
   denops: Denops,
-  textEdits: TextEdit[],
+  textEdits: LSP.TextEdit[],
   bufNr: number,
   offsetEncoding?: OffsetEncoding,
 ) {
@@ -483,7 +524,7 @@ async function createPatchFromTextEdit(
 
 async function applyTextEditToLines(
   denops: Denops,
-  textEdits: TextEdit[],
+  textEdits: LSP.TextEdit[],
   bufNr: number,
   lines: string[],
   offsetEncoding?: OffsetEncoding,
@@ -505,8 +546,18 @@ async function applyTextEditToLines(
     textEdit.newText = textEdit.newText.replace(/\r\n?/g, "\n");
     const texts = textEdit.newText.split("\n");
     const range = {
-      start: await toUtf16Position(denops, bufNr, textEdit.range.start, offsetEncoding),
-      end: await toUtf16Position(denops, bufNr, textEdit.range.end, offsetEncoding),
+      start: await toUtf16Position(
+        denops,
+        bufNr,
+        textEdit.range.start,
+        offsetEncoding,
+      ),
+      end: await toUtf16Position(
+        denops,
+        bufNr,
+        textEdit.range.end,
+        offsetEncoding,
+      ),
     };
 
     const lastLine = lines[range.end.line] ?? lines[lines.length - 1];
@@ -527,7 +578,11 @@ async function applyTextEditToLines(
     texts[0] = before + texts[0];
     texts[texts.length - 1] += after;
 
-    lines.splice(range.start.line, range.end.line - range.start.line + 1, ...texts);
+    lines.splice(
+      range.start.line,
+      range.end.line - range.start.line + 1,
+      ...texts,
+    );
   });
 
   return lines;

@@ -1,4 +1,4 @@
-import { CodeActionContext, Denops, fn, Position, Range, TextDocumentIdentifier } from "./deps.ts";
+import { Denops, fn, LSP } from "./deps.ts";
 import { getProperDiagnostics } from "../@ddu-sources/lsp_diagnostic.ts";
 import { Client } from "./client.ts";
 import { bufNrToFileUri } from "./util.ts";
@@ -7,9 +7,9 @@ import { encodeUtfPosition, OffsetEncoding } from "./offset_encoding.ts";
 
 export type TextDocumentPositionParams = {
   /** The text document. */
-  textDocument: TextDocumentIdentifier;
+  textDocument: LSP.TextDocumentIdentifier;
   /** The position inside the text document. */
-  position: Position;
+  position: LSP.Position;
 };
 
 export async function makePositionParams(
@@ -28,16 +28,16 @@ export async function makePositionParams(
 export async function makeTextDocumentIdentifier(
   denops: Denops,
   bufNr: number,
-): Promise<TextDocumentIdentifier> {
+): Promise<LSP.TextDocumentIdentifier> {
   return {
     uri: await bufNrToFileUri(denops, bufNr),
   };
 }
 
 type CodeActionParams = {
-  textDocument: TextDocumentIdentifier;
-  range: Range;
-  context: CodeActionContext;
+  textDocument: LSP.TextDocumentIdentifier;
+  range: LSP.Range;
+  context: LSP.CodeActionContext;
 };
 
 export async function makeCodeActionParams(
@@ -47,7 +47,12 @@ export async function makeCodeActionParams(
   clilent: Client,
 ): Promise<CodeActionParams> {
   const textDocument = await makeTextDocumentIdentifier(denops, bufNr);
-  const range = await getSelectionRange(denops, bufNr, winId, clilent.offsetEncoding);
+  const range = await getSelectionRange(
+    denops,
+    bufNr,
+    winId,
+    clilent.offsetEncoding,
+  );
   const diagnostics = await getProperDiagnostics(clilent.name, denops, bufNr);
 
   return {
@@ -65,7 +70,7 @@ async function getSelectionRange(
   bufNr: number,
   winId: number,
   offsetEncoding?: OffsetEncoding,
-): Promise<Range> {
+): Promise<LSP.Range> {
   const range = await vim.selectRange(denops, winId);
   const encodedRange = {
     start: await encodeUtfPosition(denops, bufNr, range.start, offsetEncoding),

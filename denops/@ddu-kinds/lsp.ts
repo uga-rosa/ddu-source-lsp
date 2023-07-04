@@ -8,11 +8,10 @@ import {
   existsSync,
   fn,
   fromA,
+  LSP,
   op,
   PreviewContext,
   Previewer,
-  Range,
-  WorkspaceSymbol,
   wrapA,
 } from "../ddu_source_lsp/deps.ts";
 
@@ -29,7 +28,7 @@ export type ActionData =
     | { bufNr?: number; path: string }
   )
   & {
-    range: Range;
+    range: LSP.Range;
     context: ItemContext;
     lnum?: number; // 1-index
     col?: number; // 1-index
@@ -57,8 +56,14 @@ async function ensureAction(
   }
 
   if (action.context.client.id !== undefined) {
-    if (action.context.method === "workspace/symbol" && action.range === undefined) {
-      await resolveWorkspaceSymbol(denops, action, item.data as WorkspaceSymbol);
+    if (
+      action.context.method === "workspace/symbol" && action.range === undefined
+    ) {
+      await resolveWorkspaceSymbol(
+        denops,
+        action,
+        item.data as LSP.WorkspaceSymbol,
+      );
     }
     await resolvePath(denops, action);
   }
@@ -130,7 +135,12 @@ export class Kind extends BaseKind<Params> {
         // Push tagstack
         const from = await fn.getpos(denops, ".");
         const tagname = await fn.expand(denops, "<cword>");
-        await fn.settagstack(denops, ctx.winId, { items: [{ from, tagname }] }, "t");
+        await fn.settagstack(
+          denops,
+          ctx.winId,
+          { items: [{ from, tagname }] },
+          "t",
+        );
       }
 
       await wrapA(fromA(items)).forEach(async (item) => {

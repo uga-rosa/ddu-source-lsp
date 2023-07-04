@@ -36,31 +36,6 @@ export {
   type SourceOptions,
 } from "https://deno.land/x/ddu_vim@v3.2.7/types.ts";
 
-export type {
-  CallHierarchyIncomingCall,
-  CallHierarchyItem,
-  CallHierarchyOutgoingCall,
-  CodeAction,
-  CodeActionContext,
-  Command,
-  CreateFile,
-  DeleteFile,
-  Diagnostic,
-  DocumentSymbol,
-  Location,
-  LocationLink,
-  Position,
-  Range,
-  ReferenceContext,
-  RenameFile,
-  SymbolInformation,
-  SymbolKind,
-  TextDocumentEdit,
-  TextDocumentIdentifier,
-  TextEdit,
-  TypeHierarchyItem,
-  WorkspaceEdit,
-  WorkspaceSymbol,
-} from "npm:vscode-languageserver-types@3.17.4-next.0";
+export * as LSP from "npm:vscode-languageserver-types@3.17.3";
 
 export * as jsdiff from "https://esm.sh/diff@5.1.0";

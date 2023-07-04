@@ -1,12 +1,4 @@
-import {
-  BaseSource,
-  Context,
-  DduItem,
-  Denops,
-  DocumentSymbol,
-  Item,
-  SymbolInformation,
-} from "../ddu_source_lsp/deps.ts";
+import { BaseSource, Context, DduItem, Denops, Item, LSP } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
@@ -42,7 +34,13 @@ export class Source extends BaseSource<Params> {
             textDocument: await makeTextDocumentIdentifier(denops, ctx.bufNr),
           };
           await Promise.all(clients.map(async (client) => {
-            const result = await lspRequest(denops, client, method, params, ctx.bufNr);
+            const result = await lspRequest(
+              denops,
+              client,
+              method,
+              params,
+              ctx.bufNr,
+            );
             const items = parseResult(result, client, ctx.bufNr, method);
             controller.enqueue(items);
           }));
@@ -72,7 +70,10 @@ function parseResult(
    * Reference:
    * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_documentSymbol
    */
-  const symbols = result as DocumentSymbol[] | SymbolInformation[] | null;
+  const symbols = result as
+    | LSP.DocumentSymbol[]
+    | LSP.SymbolInformation[]
+    | null;
   if (!symbols) {
     return [];
   }
@@ -108,7 +109,7 @@ function parseResult(
 }
 
 function isSymbolInformation(
-  symbol: SymbolInformation | DocumentSymbol,
-): symbol is SymbolInformation {
+  symbol: LSP.SymbolInformation | LSP.DocumentSymbol,
+): symbol is LSP.SymbolInformation {
   return "location" in symbol;
 }

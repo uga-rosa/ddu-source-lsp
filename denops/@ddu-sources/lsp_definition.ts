@@ -1,12 +1,4 @@
-import {
-  BaseSource,
-  Context,
-  DduItem,
-  Denops,
-  Item,
-  Location,
-  LocationLink,
-} from "../ddu_source_lsp/deps.ts";
+import { BaseSource, Context, DduItem, Denops, Item, LSP } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams } from "../ddu_source_lsp/params.ts";
@@ -51,7 +43,13 @@ export class Source extends BaseSource<Params> {
               ctx.winId,
               client.offsetEncoding,
             );
-            const result = await lspRequest(denops, client, method, params, ctx.bufNr);
+            const result = await lspRequest(
+              denops,
+              client,
+              method,
+              params,
+              ctx.bufNr,
+            );
             const items = parseResult(result, client, ctx.bufNr, method, cwd);
             controller.enqueue(items);
           }));
@@ -86,7 +84,11 @@ export function parseResult(
    * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_typeDefinition
    * https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_implementation
    */
-  const _location = result as Location | Location[] | LocationLink[] | null;
+  const _location = result as
+    | LSP.Location
+    | LSP.Location[]
+    | LSP.LocationLink[]
+    | null;
   if (!_location) {
     return [];
   }

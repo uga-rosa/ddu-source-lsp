@@ -16,7 +16,11 @@ test({
   mode: "all",
   name: "getBufLine",
   fn: async (denops) => {
-    const bufNr = await openWithText(denops, "getBufLine/test", ["foo", "bar", "baz"]);
+    const bufNr = await openWithText(denops, "getBufLine/test", [
+      "foo",
+      "bar",
+      "baz",
+    ]);
     assertEquals(await vim.getBufLine(denops, bufNr, 0), "foo");
     assertEquals(await vim.getBufLine(denops, bufNr, 1), "bar");
     assertEquals(await vim.getBufLine(denops, bufNr, 2), "baz");
@@ -39,7 +43,10 @@ test({
   mode: "all",
   name: "selectRange",
   fn: async (denops, t) => {
-    const bufNr = await openWithText(denops, "selectRange/test", ["😸cat", "🐶dog"]);
+    const bufNr = await openWithText(denops, "selectRange/test", [
+      "😸cat",
+      "🐶dog",
+    ]);
     await denops.cmd(`buffer ${bufNr}`);
     const winId = await fn.win_getid(denops);
 
@@ -122,7 +129,10 @@ test({
     const path = await Deno.makeTempFile();
     const bufNr = await openWithText(denops, path, ["😸cat", "🐶dog"]);
     assertEquals(await Deno.readTextFile(path), "");
-    assertEquals(await fn.getbufline(denops, bufNr, 1, "$"), ["😸cat", "🐶dog"]);
+    assertEquals(await fn.getbufline(denops, bufNr, 1, "$"), [
+      "😸cat",
+      "🐶dog",
+    ]);
     await vim.writeBuffers(denops, [bufNr]);
     assertEquals(await Deno.readTextFile(path), "😸cat\n🐶dog\n");
   },
@@ -143,7 +153,10 @@ test({
   mode: "all",
   name: "bufLineCount",
   fn: async (denops) => {
-    const bufNr = await openWithText(denops, "bufLineCount/test", ["foo", "bar"]);
+    const bufNr = await openWithText(denops, "bufLineCount/test", [
+      "foo",
+      "bar",
+    ]);
     assertEquals(await vim.bufLineCount(denops, bufNr), 2);
     await fn.appendbufline(denops, bufNr, "$", "baz");
     assertEquals(await vim.bufLineCount(denops, bufNr), 3);
@@ -154,7 +167,11 @@ test({
   mode: "all",
   name: "bufSetText",
   fn: async (denops, t) => {
-    const bufNr = await openWithText(denops, "bufSetText/test", ["foo", "bar", "baz"]);
+    const bufNr = await openWithText(denops, "bufSetText/test", [
+      "foo",
+      "bar",
+      "baz",
+    ]);
 
     const steps = [
       {
