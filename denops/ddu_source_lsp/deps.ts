@@ -34,7 +34,7 @@ export {
   type PreviewContext,
   type Previewer,
   type SourceOptions,
-} from "https://deno.land/x/ddu_vim@v3.2.7/types.ts";
+} from "https://deno.land/x/ddu_vim@v3.3.3/types.ts";
 
 export * as LSP from "npm:vscode-languageserver-types@3.17.3";
 
