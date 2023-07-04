@@ -1,6 +1,7 @@
 import {
   ActionFlags,
   Actions,
+  applyTextEdits,
   BaseKind,
   Context,
   DduItem,
@@ -10,18 +11,18 @@ import {
   fn,
   fromA,
   fromFileUrl,
+  getLines,
   jsdiff,
   LSP,
-  op,
   PreviewContext,
   Previewer,
+  setLines,
+  uuid,
   wrapA,
 } from "../ddu_source_lsp/deps.ts";
 import { ItemContext } from "./lsp.ts";
 import {
   bufNrToPath,
-  byteLength,
-  isPositionBefore,
   pick,
   printError,
   toRelative,
@@ -29,11 +30,7 @@ import {
   uriToPath,
 } from "../ddu_source_lsp/util.ts";
 import * as vim from "../ddu_source_lsp/vim.ts";
-import {
-  decodeUtfPosition,
-  OffsetEncoding,
-  toUtf16Position,
-} from "../ddu_source_lsp/offset_encoding.ts";
+import { OffsetEncoding } from "../ddu_source_lsp/offset_encoding.ts";
 import { lspRequest } from "../ddu_source_lsp/request.ts";
 
 export type ActionData = {
@@ -231,7 +228,7 @@ async function applyWorkspaceEdit(
   if (workspaceEdit.changes) {
     for (const [uri, textEdits] of Object.entries(workspaceEdit.changes)) {
       const bufNr = await uriToBufNr(denops, uri);
-      await applyTextEdit(denops, textEdits, bufNr, offsetEncoding);
+      await applyTextEdits(denops, bufNr, textEdits, offsetEncoding);
     }
   }
 }
@@ -333,145 +330,7 @@ async function applyTextDocumentEdit(
   // Limitation: document version is not supported.
   const path = uriToPath(change.textDocument.uri);
   const bufNr = await fn.bufadd(denops, path);
-  await applyTextEdit(denops, change.edits, bufNr, offsetEncoding);
-}
-
-async function applyTextEdit(
-  denops: Denops,
-  textEdits: LSP.TextEdit[],
-  bufNr: number,
-  offsetEncoding?: OffsetEncoding,
-) {
-  if (textEdits.length === 0) {
-    return;
-  }
-
-  await fn.bufload(denops, bufNr);
-  await op.buflisted.setBuffer(denops, bufNr, true);
-
-  // Fix reversed range
-  textEdits.forEach((textEdit) => {
-    const { start, end } = textEdit.range;
-    if (!isPositionBefore(start, end)) {
-      textEdit.range = { start: end, end: start };
-    }
-  });
-
-  // Execute in reverse order.
-  // If executed from the start, the positions would be shifted based on the results.
-  textEdits.sort((a, b) => isPositionBefore(a.range.start, b.range.start) ? 1 : -1);
-
-  // Some LSP servers are depending on the VSCode behavior.
-  // The VSCode will re-locate the cursor position after applying TextEdit so we also do it.
-  const cursor = bufNr === (await fn.bufnr(denops)) &&
-    (await vim.getCursor(denops, 0));
-
-  // Save and restore local marks since they get deleted by vim.bufSetText()
-  const marks = (await fn.getmarklist(denops, bufNr))
-    .filter((info) => /^'[a-z]$/.test(info.mark));
-
-  await wrapA(fromA(textEdits)).forEach(async (textEdit) => {
-    // Normalize newline characters to \n
-    textEdit.newText = textEdit.newText.replace(/\r\n?/g, "\n");
-    const texts = textEdit.newText.split("\n");
-
-    // Note that this is the number of lines, so it is 1-index.
-    const lineCount = await vim.bufLineCount(denops, bufNr);
-    if (textEdit.range.start.line + 1 > lineCount) {
-      // Append lines to the end of buffer `bufNr`.
-      await fn.appendbufline(denops, bufNr, "$", texts);
-    } else {
-      const vimRange = {
-        start: await decodeUtfPosition(
-          denops,
-          bufNr,
-          textEdit.range.start,
-          offsetEncoding,
-        ),
-        end: await decodeUtfPosition(
-          denops,
-          bufNr,
-          textEdit.range.end,
-          offsetEncoding,
-        ),
-      };
-      const lastLine = await vim.getBufLine(
-        denops,
-        bufNr,
-        Math.min(vimRange.end.line, lineCount - 1),
-      );
-      const lastLineLen = byteLength(lastLine);
-      if (vimRange.end.line + 1 > lineCount) {
-        // Some LSP servers may return +1 range of the buffer content
-        vimRange.end = {
-          line: lineCount - 1,
-          character: lastLineLen,
-        };
-      } else if (vimRange.end.character + 1 > lastLineLen) {
-        vimRange.end.character = lastLineLen;
-        if (textEdit.newText.endsWith("\n")) {
-          // Properly handling replacements that go beyond the end of a line,
-          // and ensuring no extra empty lines are added.
-          texts.pop();
-        }
-      }
-
-      await vim.bufSetText(denops, bufNr, vimRange, texts);
-
-      // Fix cursor position
-      if (cursor && isPositionBefore(vimRange.end, cursor)) {
-        cursor.line += texts.length -
-          (vimRange.end.line - vimRange.start.line + 1);
-        if (cursor.line === vimRange.end.line) {
-          cursor.character += texts[texts.length - 1].length -
-            vimRange.end.character;
-          if (texts.length === 1) {
-            cursor.character += vimRange.start.character;
-          }
-        }
-      }
-    }
-  });
-  const lineCount = await vim.bufLineCount(denops, bufNr);
-
-  // No need to restore marks that still exist
-  const remainMarkSet = new Set(
-    (await fn.getmarklist(denops, bufNr)).map((info) => info.mark),
-  );
-  await wrapA(fromA(marks))
-    .filter((info) => !remainMarkSet.has(info.mark))
-    .map(async (info) => {
-      info.pos[1] = Math.min(info.pos[1], lineCount);
-      info.pos[2] = Math.min(
-        info.pos[2],
-        byteLength(await vim.getBufLine(denops, bufNr, info.pos[1] - 1)),
-      );
-      return info;
-    })
-    .toArray()
-    .then(async (marks) => await vim.setMarks(denops, marks));
-
-  // Apply fixed cursor position
-  if (
-    cursor &&
-    cursor.line + 1 <= lineCount &&
-    cursor.character + 1 <
-      byteLength(await vim.getBufLine(denops, bufNr, cursor.line))
-  ) {
-    await vim.setCursor(denops, 0, cursor);
-  }
-
-  // Remove final line if needed
-  if (
-    (await op.endofline.getBuffer(denops, bufNr)) ||
-    (await op.fixendofline.getBuffer(denops, bufNr) &&
-      !(await op.binary.getBuffer(denops, bufNr)))
-  ) {
-    const lastLine = await vim.getBufLine(denops, bufNr, -1);
-    if (lastLine === "") {
-      await fn.deletebufline(denops, bufNr, "$");
-    }
-  }
+  await applyTextEdits(denops, bufNr, change.edits, offsetEncoding);
 }
 
 async function createPatchFromTextDocumentEdit(
@@ -500,11 +359,10 @@ async function createPatchFromTextEdit(
 
   const path = await toRelative(denops, await bufNrToPath(denops, bufNr));
   const oldTexts = await fn.getbufline(denops, bufNr, 1, "$");
-  const newTexts = await applyTextEditToLines(
+  const newTexts = await getLinesAppliedTextEdit(
     denops,
-    textEdits,
     bufNr,
-    [...oldTexts],
+    textEdits,
     offsetEncoding,
   );
 
@@ -522,68 +380,26 @@ async function createPatchFromTextEdit(
   return patch;
 }
 
-async function applyTextEditToLines(
+async function getLinesAppliedTextEdit(
   denops: Denops,
-  textEdits: LSP.TextEdit[],
   bufNr: number,
-  lines: string[],
+  textEdits: LSP.TextEdit[],
   offsetEncoding?: OffsetEncoding,
 ) {
-  // Fix reversed range
-  textEdits.forEach((textEdit) => {
-    const { start, end } = textEdit.range;
-    if (!isPositionBefore(start, end)) {
-      textEdit.range = { start: end, end: start };
-    }
-  });
+  // Copy to tmp buffer
+  const newBufnr = await fn.bufadd(denops, uuid.v1.generate() as string);
+  await fn.bufload(denops, newBufnr);
+  const lines = await getLines(denops, bufNr, 0, -1);
+  await setLines(denops, newBufnr, 0, -1, lines);
 
-  // Execute in reverse order.
-  // If executed from the start, the positions would be shifted based on the results.
-  textEdits.sort((a, b) => isPositionBefore(a.range.start, b.range.start) ? 1 : -1);
+  // Apply textEdits to tmp buffer
+  await applyTextEdits(denops, newBufnr, textEdits, offsetEncoding);
 
-  await wrapA(fromA(textEdits)).forEach(async (textEdit) => {
-    // Normalize newline characters to \n
-    textEdit.newText = textEdit.newText.replace(/\r\n?/g, "\n");
-    const texts = textEdit.newText.split("\n");
-    const range = {
-      start: await toUtf16Position(
-        denops,
-        bufNr,
-        textEdit.range.start,
-        offsetEncoding,
-      ),
-      end: await toUtf16Position(
-        denops,
-        bufNr,
-        textEdit.range.end,
-        offsetEncoding,
-      ),
-    };
+  // Get lines
+  const appliedLines = await getLines(denops, newBufnr, 0, -1);
 
-    const lastLine = lines[range.end.line] ?? lines[lines.length - 1];
-    if (range.end.line + 1 > lines.length) {
-      range.end = {
-        line: lines.length - 1,
-        character: lastLine.length,
-      };
-    } else if (range.end.character + 1 > lastLine.length) {
-      range.end.character = lastLine.length;
-      if (textEdit.newText.endsWith("\n")) {
-        texts.pop();
-      }
-    }
+  // Remove tmp buffer
+  await denops.cmd(`bwipeout! ${newBufnr}`);
 
-    const before = lines[range.start.line].slice(0, range.start.character);
-    const after = lines[range.end.line].slice(range.end.character);
-    texts[0] = before + texts[0];
-    texts[texts.length - 1] += after;
-
-    lines.splice(
-      range.start.line,
-      range.end.line - range.start.line + 1,
-      ...texts,
-    );
-  });
-
-  return lines;
+  return appliedLines;
 }
