@@ -96,7 +96,7 @@ export class Filter extends BaseFilter<Params> {
         item.highlights = [
           ...highlights ?? [],
           {
-            name: "converter-lsp-diagnostic",
+            name: `ddu-filter-converter_lsp_diagnostic-${hl_group}`,
             hl_group,
             col: 1,
             width: iconLength,

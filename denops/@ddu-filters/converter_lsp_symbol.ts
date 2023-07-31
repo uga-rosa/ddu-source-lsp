@@ -42,7 +42,7 @@ export class Filter extends BaseFilter<Params> {
         item.highlights = [
           ...highlights,
           {
-            name: "lsp-symbol",
+            name: `ddu-filter-converter_lsp_symbol-${kindHl}`,
             hl_group: kindHl,
             col: 1,
             width: byteLength(kindIcon) + 16, // x (icon) + 1 (space) + 15 ([kindName])
