@@ -54,6 +54,8 @@ export async function lspRequest(
     return await cocRequest(denops, client, method, params);
   } else if (client.name === "vim-lsp") {
     return await vimLspRequest(denops, client, method, params);
+  } else if (client.name === "lspoints") {
+    return await lspointsRequest(denops, client, method, params);
   } else {
     client.name satisfies never;
     throw new Error(`Unknown clientName: ${client.name}`);
@@ -118,4 +120,13 @@ async function vimLspRequest(
   } finally {
     unregister(denops, id);
   }
+}
+
+async function lspointsRequest(
+  denops: Denops,
+  client: Client,
+  method: Method,
+  params: unknown,
+): Promise<LspResult> {
+  return await denops.dispatch("lspoints", "request", client.id, method, params);
 }

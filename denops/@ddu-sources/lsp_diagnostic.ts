@@ -121,6 +121,8 @@ async function getDiagnostic(
     return await getCocDiagnostics(denops, buffer);
   } else if (clientName === "vim-lsp") {
     return await getVimLspDiagnostics(denops, buffer);
+  } else if (clientName === "lspoints") {
+    return await getLspointsDiagnostics(denops, buffer);
   } else {
     clientName satisfies never;
   }
@@ -255,6 +257,30 @@ async function getVimLspDiagnostics(
     }
   }
   return dduDiagnostics;
+}
+
+type LspointsDiagnostic = {
+  client: string;
+  bufnr: number;
+  diagnostic: LSP.Diagnostic;
+};
+
+async function getLspointsDiagnostics(
+  denops: Denops,
+  buffer: number | number[] | null,
+): Promise<DduDiagnostic[] | undefined> {
+  const bufferSet = new Set(toArray(buffer ?? []));
+  const diagnostics = await denops.dispatch(
+    "lspoints",
+    "executeCommand",
+    "lspoints.diagnostics",
+    "getFlat",
+  ) as LspointsDiagnostic[];
+  return diagnostics.filter((d) => bufferSet.has(d.bufnr))
+    .map((d) => ({
+      bufNr: d.bufnr,
+      ...d.diagnostic,
+    }));
 }
 
 function diagnosticToItem(
