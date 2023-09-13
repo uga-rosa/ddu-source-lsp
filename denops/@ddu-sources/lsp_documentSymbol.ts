@@ -2,7 +2,7 @@ import { BaseSource, Context, DduItem, Denops, Item, LSP } from "../ddu_source_l
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
-import { printError, uriToPath } from "../ddu_source_lsp/util.ts";
+import { printError, SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
@@ -10,6 +10,8 @@ import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
 type Params = {
   clientName: ClientName;
 };
+
+type ItemWithAction = SomeRequired<Item<ActionData>, "action">;
 
 export class Source extends BaseSource<Params> {
   kind = "lsp";
@@ -80,36 +82,59 @@ function parseResult(
 
   const context = { client, bufNr, method };
 
-  return symbols
-    .map((symbol) => {
+  const items: ItemWithAction[] = [];
+  const setItems = (
+    parentPath: string[],
+    symbols: LSP.DocumentSymbol[] | LSP.SymbolInformation[],
+  ) => {
+    for (const symbol of symbols) {
       const kindName = KindName[symbol.kind];
       const kind = `[${kindName}]`.padEnd(15, " ");
-      const action = isSymbolInformation(symbol)
-        ? {
-          path: uriToPath(symbol.location.uri),
-          range: symbol.location.range,
-        }
-        : {
-          bufNr,
-          range: symbol.selectionRange,
-        };
-      return {
+      const item: ItemWithAction = {
         word: `${kind} ${symbol.name}`,
         action: {
-          ...action,
+          ...(isDucumentSymbol(symbol)
+            ? {
+              bufNr,
+              range: symbol.selectionRange,
+            }
+            : {
+              path: uriToPath(symbol.location.uri),
+              range: symbol.location.range,
+            }),
           context,
         },
+        isExpanded: true,
+        level: parentPath.length,
+        treePath: [...parentPath, symbol.name],
         data: symbol,
       };
-    })
-    .filter(isValidItem)
-    .sort((a, b) => {
-      return a.action.range.start.line - b.action.range.start.line;
-    });
+      if (isDucumentSymbol(symbol) && symbol.children) {
+        item.isTree = true;
+        setItems(item.treePath as string[], symbol.children);
+      }
+      if (isValidItem(item)) {
+        items.push(item);
+      }
+    }
+  };
+
+  setItems([], symbols);
+
+  items.sort((a, b) => {
+    const aStart = a.action.range.start;
+    const bStart = b.action.range.start;
+    if (aStart.line !== bStart.line) {
+      return aStart.line - bStart.line;
+    }
+    return aStart.character - bStart.character;
+  });
+  console.log(items);
+  return items;
 }
 
-function isSymbolInformation(
+function isDucumentSymbol(
   symbol: LSP.SymbolInformation | LSP.DocumentSymbol,
-): symbol is LSP.SymbolInformation {
-  return "location" in symbol;
+): symbol is LSP.DocumentSymbol {
+  return "range" in symbol;
 }

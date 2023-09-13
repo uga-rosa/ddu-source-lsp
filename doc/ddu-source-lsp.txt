@@ -114,6 +114,8 @@ AVAILABLE SOURCES			*ddu-source-lsp-available-sources*
 					*ddu-source-lsp_documentSymbol*
 - lsp_documentSymbol
 	This lists the document symbols in the current buffer.
+	By setting |ddu-ui-ff-param-displayTree|, class methods, etc. can be
+	displayed in a tree structure (the language server must support this).
 
 					*ddu-source-lsp_workspaceSymbol*
 - lsp_workspaceSymbol
