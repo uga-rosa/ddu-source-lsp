@@ -83,8 +83,8 @@ function parseResult(
     action: {
       ...isCodeAction(codeAction) ? pick(codeAction, "edit", "command") : { command: codeAction },
       context,
+      codeAction,
     },
-    data: codeAction,
   }));
 }
 
