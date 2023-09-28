@@ -38,7 +38,7 @@ export type ActionData = {
   command?: LSP.Command;
   context: Omit<ItemContext, "method">;
   resolved?: boolean;
-  codeAction: LSP.Command | LSP.CodeAction;
+  codeAction?: LSP.CodeAction;
 };
 
 async function ensureAction(
@@ -50,7 +50,7 @@ async function ensureAction(
     throw new Error(`Invalid usage of kind-lsp_codeAction`);
   }
 
-  if (!action.resolved && action.edit === undefined) {
+  if (!action.resolved && action.edit === undefined && action.codeAction) {
     try {
       const resolvedCodeAction = await lspRequest(
         denops,
