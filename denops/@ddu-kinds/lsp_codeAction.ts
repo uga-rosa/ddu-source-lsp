@@ -38,6 +38,7 @@ export type ActionData = {
   command?: LSP.Command;
   context: Omit<ItemContext, "method">;
   resolved?: boolean;
+  codeAction: LSP.Command | LSP.CodeAction;
 };
 
 async function ensureAction(
@@ -55,7 +56,7 @@ async function ensureAction(
         denops,
         action.context.client,
         "codeAction/resolve",
-        item.data,
+        action.codeAction,
         action.context.bufNr,
       ) as LSP.CodeAction | null;
       action.edit = resolvedCodeAction?.edit;
