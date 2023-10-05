@@ -5,6 +5,7 @@ export const CLIENT_NAME = [
   "nvim-lsp",
   "coc.nvim",
   "vim-lsp",
+  "lspoints",
 ] as const satisfies readonly string[];
 
 export type ClientName = typeof CLIENT_NAME[number];
@@ -34,6 +35,8 @@ export async function getClients(
     return await cocClients(denops, bufNr);
   } else if (clientName === "vim-lsp") {
     return await vimLspClients(denops, bufNr);
+  } else if (clientName === "lspoints") {
+    return await lspointsClients(denops, bufNr);
   } else {
     clientName satisfies never;
     throw new Error(`Unknown client name: ${clientName}`);
@@ -85,5 +88,18 @@ async function vimLspClients(
   return servers.map((server) => ({
     name: "vim-lsp",
     id: server,
+  }));
+}
+
+async function lspointsClients(
+  denops: Denops,
+  bufNr: number,
+): Promise<Client[]> {
+  const clients = await denops.dispatch("lspoints", "getClients", bufNr) as {
+    name: string;
+  }[];
+  return clients.map((client) => ({
+    name: "lspoints",
+    id: client.name,
   }));
 }

@@ -20,6 +20,7 @@ Supported lsp clients are:
 	- nvim-lsp (neovim's diagnostic framework)
 	- coc.nvim (https://github.com/neoclide/coc.nvim)
 	- vim-lsp (https://github.com/prabirshrestha/vim-lsp)
+	- lspoints (https://github.com/kuuote/lspoints)
 
 
 ==============================================================================
@@ -55,6 +56,7 @@ clientName	(string)
 	- nvim-lsp: Neovim's diagnostic framework (|vim.diagnostic|)
 	- coc.nvim: https://github.com/neoclide/coc.nvim
 	- vim-lsp:  https://github.com/prabirshrestha/vim-lsp
+	- lspoints: https://github.com/kuuote/lspoints
 
 	Default: "nvim-lsp"
 
