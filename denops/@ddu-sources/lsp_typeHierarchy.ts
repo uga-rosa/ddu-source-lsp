@@ -1,6 +1,6 @@
 import { BaseSource, Context, DduItem, Denops, is, Item, LSP } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
-import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
+import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
 import { printError, SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
@@ -19,7 +19,7 @@ type ItemHierarchy =
   };
 
 export type Params = {
-  clientName: ClientName;
+  clientName: ClientName | "";
   method: Extract<
     Method,
     | "typeHierarchy/supertypes"
@@ -39,10 +39,12 @@ export class Source extends BaseSource<Params> {
     parent?: DduItem;
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
-    const { clientName, method, autoExpandSingle } = sourceParams;
+    const { method, autoExpandSingle } = sourceParams;
 
     return new ReadableStream({
       async start(controller) {
+        const clientName = await getClientName(denops, sourceParams);
+
         const searchChildren = async (itemParent: ItemHierarchy) => {
           const parent = itemParent.data;
           const client = itemParent.action.context.client;
@@ -134,7 +136,7 @@ export class Source extends BaseSource<Params> {
 
   params(): Params {
     return {
-      clientName: "nvim-lsp",
+      clientName: "",
       method: "typeHierarchy/supertypes",
       autoExpandSingle: true,
     };

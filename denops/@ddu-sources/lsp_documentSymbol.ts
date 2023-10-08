@@ -1,6 +1,6 @@
 import { BaseSource, Context, DduItem, Denops, Item, LSP } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
-import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
+import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
 import { printError, SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
@@ -8,7 +8,7 @@ import { isValidItem } from "../ddu_source_lsp/handler.ts";
 import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
 
 type Params = {
-  clientName: ClientName;
+  clientName: ClientName | "";
 };
 
 type ItemWithAction = SomeRequired<Item<ActionData>, "action">;
@@ -24,12 +24,12 @@ export class Source extends BaseSource<Params> {
     parent?: DduItem;
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
-    const { clientName } = sourceParams;
     const method: Method = "textDocument/documentSymbol";
 
     return new ReadableStream({
       async start(controller) {
         try {
+          const clientName = await getClientName(denops, sourceParams);
           const clients = await getClients(denops, clientName, ctx.bufNr);
 
           const params = {
@@ -57,7 +57,7 @@ export class Source extends BaseSource<Params> {
 
   params(): Params {
     return {
-      clientName: "nvim-lsp",
+      clientName: "",
     };
   }
 }

@@ -1,4 +1,4 @@
-import { Denops, op } from "./deps.ts";
+import { Denops, globals, op } from "./deps.ts";
 import { OffsetEncoding } from "./offset_encoding.ts";
 
 export const CLIENT_NAME = [
@@ -9,6 +9,17 @@ export const CLIENT_NAME = [
 ] as const satisfies readonly string[];
 
 export type ClientName = typeof CLIENT_NAME[number];
+
+export async function getClientName(
+  denops: Denops,
+  sourceParams: { clientName: ClientName | "" },
+): Promise<ClientName> {
+  if (sourceParams.clientName !== "") {
+    return sourceParams.clientName;
+  } else {
+    return await globals.get(denops, "ddu_source_lsp_clientName", "nvim-lsp");
+  }
+}
 
 export function assertClientName(
   clientName: string,

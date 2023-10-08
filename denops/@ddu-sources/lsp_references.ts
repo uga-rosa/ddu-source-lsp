@@ -1,6 +1,6 @@
 import { BaseSource, Context, DduItem, Denops, Item, LSP } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
-import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
+import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
 import { getCwd, locationToItem, printError } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
@@ -11,7 +11,7 @@ type ReferenceParams = TextDocumentPositionParams & {
 };
 
 type Params = {
-  clientName: ClientName;
+  clientName: ClientName | "";
   includeDeclaration: boolean;
 };
 
@@ -26,12 +26,13 @@ export class Source extends BaseSource<Params> {
     parent?: DduItem;
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
-    const { clientName, includeDeclaration } = sourceParams;
+    const { includeDeclaration } = sourceParams;
     const method: Method = "textDocument/references";
 
     return new ReadableStream({
       async start(controller) {
         try {
+          const clientName = await getClientName(denops, sourceParams);
           const clients = await getClients(denops, clientName, ctx.bufNr);
           const cwd = await getCwd(denops, ctx.winId);
 
@@ -64,7 +65,7 @@ export class Source extends BaseSource<Params> {
 
   params(): Params {
     return {
-      clientName: "nvim-lsp",
+      clientName: "",
       includeDeclaration: true,
     };
   }

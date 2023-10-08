@@ -1,12 +1,12 @@
 import { BaseSource, Context, DduItem, Denops, Item, LSP } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
-import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
+import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeCodeActionParams } from "../ddu_source_lsp/params.ts";
 import { ActionData } from "../@ddu-kinds/lsp_codeAction.ts";
 import { pick, printError } from "../ddu_source_lsp/util.ts";
 
 type Params = {
-  clientName: ClientName;
+  clientName: ClientName | "";
 };
 
 export class Source extends BaseSource<Params> {
@@ -20,12 +20,12 @@ export class Source extends BaseSource<Params> {
     parent?: DduItem;
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
-    const { clientName } = sourceParams;
     const method: Method = "textDocument/codeAction";
 
     return new ReadableStream({
       async start(controller) {
         try {
+          const clientName = await getClientName(denops, sourceParams);
           const clients = await getClients(denops, clientName, ctx.bufNr);
 
           await Promise.all(clients.map(async (client) => {
@@ -56,7 +56,7 @@ export class Source extends BaseSource<Params> {
 
   params(): Params {
     return {
-      clientName: "nvim-lsp",
+      clientName: "",
     };
   }
 }

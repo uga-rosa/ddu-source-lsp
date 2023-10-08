@@ -214,6 +214,8 @@ clientName	(string)
 	- vim-lsp:  https://github.com/prabirshrestha/vim-lsp
 	- lspoints: https://github.com/kuuote/lspoints
 
+	See also |g:ddu_source_lsp_clientName|.
+
 	Default: "nvim-lsp"
 
 					*ddu-source-lsp-param-method*
@@ -252,6 +254,14 @@ autoExpandSingle	(boolean)
 	If there is only one item when you open, expand automatically.
 
 	Default: true
+
+
+==============================================================================
+VARIABLES					*ddu-source-lsp-variables*
+
+						*g:ddu_source_lsp_clientName*
+g:ddu_source_lsp_clientName
+	Change the default clientName at once.
 
 
 ==============================================================================

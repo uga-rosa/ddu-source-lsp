@@ -8,7 +8,7 @@ import {
   SourceOptions,
 } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
-import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
+import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { printError, SomePartial, uriToPath } from "../ddu_source_lsp/util.ts";
 import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
@@ -17,7 +17,7 @@ import { isValidItem } from "../ddu_source_lsp/handler.ts";
 export type ActionWorkspaceSymbol = SomePartial<ActionData, "range">;
 
 type Params = {
-  clientName: ClientName;
+  clientName: ClientName | "";
   query: string;
 };
 
@@ -33,12 +33,13 @@ export class Source extends BaseSource<Params> {
     parent?: DduItem;
   }): ReadableStream<Item<ActionWorkspaceSymbol>[]> {
     const { denops, sourceOptions, sourceParams, context: ctx } = args;
-    const { clientName, query } = sourceParams;
+    const { query } = sourceParams;
     const method: Method = "workspace/symbol";
 
     return new ReadableStream({
       async start(controller) {
         try {
+          const clientName = await getClientName(denops, sourceParams);
           const clients = await getClients(denops, clientName, ctx.bufNr);
 
           const params = {
@@ -66,7 +67,7 @@ export class Source extends BaseSource<Params> {
 
   params(): Params {
     return {
-      clientName: "nvim-lsp",
+      clientName: "",
       query: "",
     };
   }

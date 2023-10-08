@@ -9,7 +9,7 @@ import {
   relative,
 } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, Method } from "../ddu_source_lsp/request.ts";
-import { Client, ClientName, getClients } from "../ddu_source_lsp/client.ts";
+import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
 import { getCwd, printError, SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
@@ -28,7 +28,7 @@ type ItemHierarchy =
   };
 
 export type Params = {
-  clientName: ClientName;
+  clientName: ClientName | "";
   method: Extract<
     Method,
     | "callHierarchy/incomingCalls"
@@ -48,10 +48,12 @@ export class Source extends BaseSource<Params> {
     parent?: DduItem;
   }): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
-    const { clientName, method, autoExpandSingle } = sourceParams;
+    const { method, autoExpandSingle } = sourceParams;
 
     return new ReadableStream({
       async start(controller) {
+        const clientName = await getClientName(denops, sourceParams);
+
         const peek = async (itemParent: ItemHierarchy) => {
           if (typeof itemParent.isTree === "boolean") {
             return itemParent;
@@ -133,7 +135,7 @@ export class Source extends BaseSource<Params> {
 
   params(): Params {
     return {
-      clientName: "nvim-lsp",
+      clientName: "",
       method: "callHierarchy/incomingCalls",
       autoExpandSingle: true,
     };
