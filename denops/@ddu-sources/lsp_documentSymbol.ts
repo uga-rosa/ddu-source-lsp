@@ -129,7 +129,6 @@ function parseResult(
     }
     return aStart.character - bStart.character;
   });
-  console.log(items);
   return items;
 }
 
