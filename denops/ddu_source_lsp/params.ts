@@ -1,7 +1,6 @@
-import { Denops, fn, LSP } from "./deps.ts";
+import { Denops, fn, LSP, lu } from "./deps.ts";
 import { getProperDiagnostics } from "../@ddu-sources/lsp_diagnostic.ts";
 import { Client } from "./client.ts";
-import { bufNrToFileUri } from "./util.ts";
 import * as vim from "./vim.ts";
 import { encodeUtfPosition, OffsetEncoding } from "./offset_encoding.ts";
 
@@ -30,7 +29,7 @@ export async function makeTextDocumentIdentifier(
   bufNr: number,
 ): Promise<LSP.TextDocumentIdentifier> {
   return {
-    uri: await bufNrToFileUri(denops, bufNr),
+    uri: await lu.uriFromBufnr(denops, bufNr),
   };
 }
 

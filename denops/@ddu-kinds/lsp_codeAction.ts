@@ -14,6 +14,7 @@ import {
   getLines,
   jsdiff,
   LSP,
+  lu,
   PreviewContext,
   Previewer,
   setLines,
@@ -21,14 +22,7 @@ import {
   wrapA,
 } from "../ddu_source_lsp/deps.ts";
 import { ItemContext } from "./lsp.ts";
-import {
-  bufNrToPath,
-  pick,
-  printError,
-  toRelative,
-  uriToBufNr,
-  uriToPath,
-} from "../ddu_source_lsp/util.ts";
+import { bufnrToFname, pick, printError, toRelative, uriToFname } from "../ddu_source_lsp/util.ts";
 import * as vim from "../ddu_source_lsp/vim.ts";
 import { OffsetEncoding } from "../ddu_source_lsp/offset_encoding.ts";
 import { lspRequest } from "../ddu_source_lsp/request.ts";
@@ -173,7 +167,7 @@ export class Kind extends BaseKind<Params> {
       } else if (action.edit.changes) {
         const patch = await wrapA(fromA(Object.entries(action.edit.changes)))
           .map(async ([uri, textEdits]) => {
-            const bufNr = await uriToBufNr(denops, uri);
+            const bufNr = await lu.uriToBufnr(denops, uri);
             return await createPatchFromTextEdit(
               denops,
               textEdits,
@@ -228,7 +222,7 @@ async function applyWorkspaceEdit(
 
   if (workspaceEdit.changes) {
     for (const [uri, textEdits] of Object.entries(workspaceEdit.changes)) {
-      const bufNr = await uriToBufNr(denops, uri);
+      const bufNr = await lu.uriToBufnr(denops, uri);
       await applyTextEdits(denops, bufNr, textEdits, offsetEncoding);
     }
   }
@@ -238,7 +232,7 @@ async function createFile(
   denops: Denops,
   change: LSP.CreateFile,
 ) {
-  const path = uriToPath(change.uri);
+  const path = uriToFname(change.uri);
   if (
     !existsSync(path) ||
     (change.options?.overwrite || !change.options?.ignoreIfExists)
@@ -253,8 +247,8 @@ async function renameFile(
   denops: Denops,
   change: LSP.RenameFile,
 ) {
-  const oldPath = uriToPath(change.oldUri);
-  const newPath = uriToPath(change.newUri);
+  const oldPath = uriToFname(change.oldUri);
+  const newPath = uriToFname(change.newUri);
 
   if (existsSync(newPath)) {
     if (!change.options?.overwrite || change.options.ignoreIfExists) {
@@ -300,7 +294,7 @@ async function deleteFile(
   denops: Denops,
   change: LSP.DeleteFile,
 ) {
-  const path = uriToPath(change.uri);
+  const path = uriToFname(change.uri);
   if (!existsSync(path)) {
     if (!change.options?.ignoreIfNotExists) {
       printError(
@@ -329,7 +323,7 @@ async function applyTextDocumentEdit(
   offsetEncoding?: OffsetEncoding,
 ) {
   // Limitation: document version is not supported.
-  const path = uriToPath(change.textDocument.uri);
+  const path = uriToFname(change.textDocument.uri);
   const bufNr = await fn.bufadd(denops, path);
   await applyTextEdits(denops, bufNr, change.edits, offsetEncoding);
 }
@@ -340,7 +334,7 @@ async function createPatchFromTextDocumentEdit(
   offsetEncoding?: OffsetEncoding,
 ) {
   // Limitation: document version is not supported.
-  const path = uriToPath(change.textDocument.uri);
+  const path = uriToFname(change.textDocument.uri);
   const bufNr = await fn.bufadd(denops, path);
   return await createPatchFromTextEdit(
     denops,
@@ -358,7 +352,7 @@ async function createPatchFromTextEdit(
 ) {
   await fn.bufload(denops, bufNr);
 
-  const path = await toRelative(denops, await bufNrToPath(denops, bufNr));
+  const path = await toRelative(denops, await bufnrToFname(denops, bufNr));
   const oldTexts = await fn.getbufline(denops, bufNr, 1, "$");
   const newTexts = await getLinesAppliedTextEdit(
     denops,

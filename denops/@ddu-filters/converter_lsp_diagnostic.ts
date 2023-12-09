@@ -5,11 +5,12 @@ import {
   Denops,
   fn,
   fromA,
+  lu,
   relative,
   wrapA,
 } from "../ddu_source_lsp/deps.ts";
 import { ItemDiagnostic, Severity } from "../@ddu-sources/lsp_diagnostic.ts";
-import { bufNrToPath, byteLength, getCwd } from "../ddu_source_lsp/util.ts";
+import { byteLength, getCwd } from "../ddu_source_lsp/util.ts";
 
 const SeverityName = {
   1: "Error",
@@ -53,7 +54,7 @@ export class Filter extends BaseFilter<Params> {
 
     const toPath: Record<number, string> = {};
     for (const bufNr of bufferSet) {
-      toPath[bufNr] = await bufNrToPath(denops, bufNr);
+      toPath[bufNr] = await lu.uriFromBufnr(denops, bufNr);
     }
 
     const iconLength = Math.max(

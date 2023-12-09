@@ -15,7 +15,7 @@ import {
   wrapA,
 } from "../ddu_source_lsp/deps.ts";
 
-import { bufNrToPath, hasProps, printError } from "../ddu_source_lsp/util.ts";
+import { bufnrToFname, hasProps, printError } from "../ddu_source_lsp/util.ts";
 import { Client } from "../ddu_source_lsp/client.ts";
 import { Method } from "../ddu_source_lsp/request.ts";
 import { resolvePath } from "../ddu_source_lsp/handler.ts";
@@ -71,7 +71,7 @@ async function ensureAction(
   // At least one of bufNr and path exists
   const bufNr = action.bufNr ?? await fn.bufadd(denops, action.path!);
   await fn.bufload(denops, bufNr);
-  const path = action.path ?? await bufNrToPath(denops, action.bufNr!);
+  const path = action.path ?? await bufnrToFname(denops, bufNr);
   const decodedPosition = await decodeUtfPosition(
     denops,
     bufNr,

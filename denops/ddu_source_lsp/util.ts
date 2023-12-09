@@ -1,4 +1,4 @@
-import { Denops, fn, fromFileUrl, isAbsolute, LSP, relative, toFileUrl } from "./deps.ts";
+import { Denops, fn, LSP, lu, relative } from "./deps.ts";
 import { ItemContext } from "../@ddu-kinds/lsp.ts";
 
 // On shared server, console.error is not output to vim's output area.
@@ -11,37 +11,19 @@ export async function printError(
   await denops.call("ddu#util#print_error", `[${name}] ${message}`);
 }
 
-export async function bufNrToFileUri(
-  denops: Denops,
-  bufNr: number,
-) {
-  const filepath = await bufNrToPath(denops, bufNr);
-  return isAbsolute(filepath) ? toFileUrl(filepath).href : filepath;
-}
-
-export async function bufNrToPath(
-  denops: Denops,
-  bufNr: number,
-) {
-  return await denops.eval(`fnamemodify(bufname(${bufNr}), ":p")`) as string;
-}
-
-export async function uriToBufNr(
-  denops: Denops,
-  uri: string,
-) {
-  const path = uriToPath(uri);
-  const bufNr = await fn.bufadd(denops, path);
-  await fn.bufload(denops, bufNr);
-  return bufNr;
-}
-
-export function uriToPath(uri: string) {
-  if (uri.startsWith("file://")) {
-    return fromFileUrl(uri);
-  } else {
+export function uriToFname(uri: string) {
+  try {
+    return lu.uriToFname(uri);
+  } catch {
     return uri;
   }
+}
+
+export async function bufnrToFname(
+  denops: Denops,
+  bufnr: number,
+): Promise<string> {
+  return await denops.eval(`fnamemodify(bufname(${bufnr}), ':p')`) as string;
 }
 
 export function locationToItem(
@@ -51,7 +33,7 @@ export function locationToItem(
 ) {
   const uri = "uri" in location ? location.uri : location.targetUri;
   const range = "range" in location ? location.range : location.targetSelectionRange;
-  const path = uriToPath(uri);
+  const path = uriToFname(uri);
   const relativePath = relative(cwd, path);
   const { line, character } = range.start;
   const [lineNr, col] = [line + 1, character + 1];

@@ -9,7 +9,7 @@ import {
 } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
-import { printError, SomePartial, uriToPath } from "../ddu_source_lsp/util.ts";
+import { printError, SomePartial, uriToFname } from "../ddu_source_lsp/util.ts";
 import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
@@ -100,7 +100,7 @@ function parseResult(
       return {
         word: `${kind} ${symbol.name}`,
         action: {
-          path: uriToPath(symbol.location.uri),
+          path: uriToFname(symbol.location.uri),
           range: "range" in symbol.location ? symbol.location.range : undefined,
           context,
         },

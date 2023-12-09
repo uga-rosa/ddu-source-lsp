@@ -11,7 +11,7 @@ import {
 import { lspRequest, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
-import { getCwd, printError, SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
+import { getCwd, printError, SomeRequired, uriToFname } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
@@ -172,7 +172,7 @@ async function prepareCallHierarchy(
 
     return callHierarchyItems
       .map((call) => {
-        const path = uriToPath(call.uri);
+        const path = uriToFname(call.uri);
         const lnum = call.range.start.line + 1;
         const col = call.range.start.character + 1;
         const display = `${call.name} (${relative(cwd, path)}:${lnum}:${col})`;
@@ -224,7 +224,7 @@ async function searchChildren(
 
     return calls.flatMap((call) => {
       const linkItem = isIncomingCall(call) ? call.from : call.to;
-      const path = isIncomingCall(call) ? uriToPath(linkItem.uri) : itemParent.action.path;
+      const path = isIncomingCall(call) ? uriToFname(linkItem.uri) : itemParent.action.path;
       const relativePath = relative(cwd, path);
 
       const fromRanges = deduplicate(call.fromRanges, hashRange);

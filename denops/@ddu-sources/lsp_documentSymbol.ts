@@ -2,7 +2,7 @@ import { BaseSource, Context, DduItem, Denops, Item, LSP } from "../ddu_source_l
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
-import { printError, SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
+import { printError, SomeRequired, uriToFname } from "../ddu_source_lsp/util.ts";
 import { ActionData } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
@@ -99,7 +99,7 @@ function parseResult(
               range: symbol.selectionRange,
             }
             : {
-              path: uriToPath(symbol.location.uri),
+              path: uriToFname(symbol.location.uri),
               range: symbol.location.range,
             }),
           context,

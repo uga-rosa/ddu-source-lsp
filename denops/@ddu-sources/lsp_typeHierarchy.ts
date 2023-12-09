@@ -2,7 +2,7 @@ import { BaseSource, Context, DduItem, Denops, is, Item, LSP } from "../ddu_sour
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
 import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makePositionParams, TextDocumentPositionParams } from "../ddu_source_lsp/params.ts";
-import { printError, SomeRequired, uriToPath } from "../ddu_source_lsp/util.ts";
+import { printError, SomeRequired, uriToFname } from "../ddu_source_lsp/util.ts";
 import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 
@@ -197,7 +197,7 @@ function typeHierarchyToItem(
     treePath: [...itemParent?.treePath ?? [], typeHierarchyItem.name],
     level: (itemParent?.level ?? -1) + 1,
     action: {
-      path: uriToPath(typeHierarchyItem.uri),
+      path: uriToFname(typeHierarchyItem.uri),
       range: typeHierarchyItem.range,
       context,
     },
