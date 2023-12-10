@@ -29,7 +29,7 @@ export async function makeTextDocumentIdentifier(
   bufNr: number,
 ): Promise<LSP.TextDocumentIdentifier> {
   return {
-    uri: encodeURI(await lu.uriFromBufnr(denops, bufNr)),
+    uri: await lu.uriFromBufnr(denops, bufNr),
   };
 }
 
