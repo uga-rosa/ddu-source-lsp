@@ -1,4 +1,4 @@
-import { Denops, globals, op } from "./deps.ts";
+import { b, Denops, g, op } from "./deps.ts";
 import { OffsetEncoding } from "./offset_encoding.ts";
 
 export const CLIENT_NAME = [
@@ -17,7 +17,11 @@ export async function getClientName(
   if (sourceParams.clientName !== "") {
     return sourceParams.clientName;
   } else {
-    return await globals.get(denops, "ddu_source_lsp_clientName", "nvim-lsp");
+    return await b.get(
+      denops,
+      "ddu_source_lsp_clientName",
+      await g.get(denops, "ddu_source_lsp_clientName", "nvim-lsp"),
+    );
   }
 }
 

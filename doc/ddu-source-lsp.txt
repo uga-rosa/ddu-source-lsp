@@ -259,9 +259,11 @@ autoExpandSingle	(boolean)
 ==============================================================================
 VARIABLES					*ddu-source-lsp-variables*
 
-						*g:ddu_source_lsp_clientName*
+		*g:ddu_source_lsp_clientName* *b:ddu_source_lsp_clientName*
 g:ddu_source_lsp_clientName
-	Change the default clientName at once.
+b:ddu_source_lsp_clientName
+	Change the default clientName at once. b:ddu_source_lsp_clientName has
+	priority over.
 
 
 ==============================================================================

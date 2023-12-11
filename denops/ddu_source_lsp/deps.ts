@@ -16,7 +16,7 @@ export type { MarkInformation } from "https://deno.land/x/denops_std@v5.1.0/func
 export * as op from "https://deno.land/x/denops_std@v5.1.0/option/mod.ts";
 export { batch } from "https://deno.land/x/denops_std@v5.1.0/batch/mod.ts";
 export { register, unregister } from "https://deno.land/x/denops_std@v5.1.0/lambda/mod.ts";
-export { globals } from "https://deno.land/x/denops_std@v5.1.0/variable/mod.ts";
+export { b, g } from "https://deno.land/x/denops_std@v5.1.0/variable/mod.ts";
 export { test } from "https://deno.land/x/denops_test@v1.4.0/mod.ts";
 export { ensure, is } from "https://deno.land/x/unknownutil@v3.11.0/mod.ts";
 export {
