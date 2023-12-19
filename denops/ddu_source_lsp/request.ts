@@ -1,13 +1,4 @@
-import {
-  deadline,
-  DeadlineError,
-  deferred,
-  Denops,
-  ensure,
-  is,
-  register,
-  unregister,
-} from "./deps.ts";
+import { deadline, DeadlineError, Denops, ensure, is, register, unregister } from "./deps.ts";
 import { Client } from "./client.ts";
 
 export const SUPPORTED_METHOD = [
@@ -99,15 +90,15 @@ async function vimLspRequest(
    * Original code is https://github.com/Milly/ddu-source-vimlsp
    * Copyright (c) 2023 Milly
    */
-  const data = deferred<unknown>();
-  const id = register(denops, (response: unknown) => data.resolve(response));
+  const waiter = Promise.withResolvers<unknown>();
+  const id = register(denops, (response: unknown) => waiter.resolve(response));
   try {
     await denops.eval(
       `lsp#send_request(l:server, extend(l:request,` +
         `{'on_notification': {data -> denops#notify(l:name, l:id, [data])}}))`,
       { server: client.id, request: { method, params }, name: denops.name, id },
     );
-    const resolvedData = await deadline(data, 5_000);
+    const resolvedData = await deadline(waiter.promise, 5_000);
     const { response } = ensure(resolvedData, is.Record);
     const { result } = ensure(response, is.Record);
     return result;
