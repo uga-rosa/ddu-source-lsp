@@ -232,9 +232,9 @@ export class Kind extends BaseKind<Params> {
 
       const replacer = (
         match: string,
-        p1: string,
+        p1?: string,
       ) => {
-        if (!p1.length || !(p1 in pairs)) {
+        if (!p1?.length || !(p1 in pairs)) {
           throw `invalid item ${match}`;
         }
         return pairs[p1 as keyof typeof pairs];
