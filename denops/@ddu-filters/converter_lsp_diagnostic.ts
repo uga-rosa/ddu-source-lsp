@@ -76,6 +76,7 @@ export class Filter extends BaseFilter<Params> {
         denops,
         param.iconMap[severityName],
         iconLength,
+        false,
       );
       // To prioritize speed, decodePosition() is not used.
       // So, row may not be correct.
