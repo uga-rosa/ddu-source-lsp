@@ -1,13 +1,11 @@
 import {
   BaseFilter,
-  Context,
   DduItem,
   Denops,
+  FilterArguments,
   fn,
-  fromA,
   lu,
   relative,
-  wrapA,
 } from "../ddu_source_lsp/deps.ts";
 import { ItemDiagnostic, Severity } from "../@ddu-sources/lsp_diagnostic.ts";
 import { byteLength, getCwd } from "../ddu_source_lsp/util.ts";
@@ -29,32 +27,31 @@ type Params = {
 };
 
 export class Filter extends BaseFilter<Params> {
-  override async filter(args: {
-    denops: Denops;
-    context: Context;
-    filterParams: Params;
-    items: DduItem[];
-  }): Promise<DduItem[]> {
-    const { denops, filterParams: param, items } = args;
-    const cwd = await getCwd(denops, args.context.winId);
+  override async filter({
+    denops,
+    context,
+    filterParams: params,
+    items,
+  }: FilterArguments<Params>): Promise<DduItem[]> {
+    const cwd = await getCwd(denops, context.winId);
 
     const bufferSet = new Set<number>();
     const lineSet = new Set<number>();
     const characterSet = new Set<number>();
 
-    items.forEach((item) => {
+    for (const item of items) {
       if (item.__sourceName !== "lsp_diagnostic") {
-        return;
+        continue;
       }
       const { action } = item as ItemDiagnostic;
       bufferSet.add(action.bufNr);
       lineSet.add(action.range.start.line);
       characterSet.add(action.range.start.character);
-    });
+    }
 
-    const toPath: Record<number, string> = {};
+    const bufnrToPath: Record<number, string> = {};
     for (const bufNr of bufferSet) {
-      toPath[bufNr] = await lu.uriFromBufnr(denops, bufNr);
+      bufnrToPath[bufNr] = await lu.uriFromBufnr(denops, bufNr);
     }
 
     const iconLength = Math.max(
@@ -63,31 +60,28 @@ export class Filter extends BaseFilter<Params> {
     const lineLength = (Math.max(...lineSet) + 1).toString().length;
     const characterLength = (Math.max(...characterSet) + 1).toString().length;
 
-    return await wrapA(fromA(items)).map(async (item) => {
+    for (const item of items) {
       if (item.__sourceName !== "lsp_diagnostic") {
-        return item;
+        continue;
       }
       const { action, data } = item as ItemDiagnostic;
-      const { bufNr, path = toPath[bufNr], range } = action;
+      const { bufNr, range } = action;
+      const path = bufnrToPath[bufNr];
       const severityName = SeverityName[data.severity ?? 1];
 
       const relativePath = relative(cwd, path);
       const icon = await padding(
         denops,
-        param.iconMap[severityName],
+        params.iconMap[severityName],
         iconLength,
       );
       // To prioritize speed, decodePosition() is not used.
       // So, row may not be correct.
       const lnum = await padding(denops, range.start.line + 1, lineLength);
-      const row = await padding(
-        denops,
-        range.start.character + 1,
-        characterLength,
-      );
+      const row = await padding(denops, range.start.character + 1, characterLength);
       const prefix = `${icon} ${lnum}:${row}`;
 
-      const hl_group = param.hlGroupMap[severityName];
+      const hl_group = params.hlGroupMap[severityName];
       if (hl_group) {
         const offset = byteLength(prefix);
         const highlights = item.highlights?.map((hl) => ({
@@ -107,11 +101,11 @@ export class Filter extends BaseFilter<Params> {
 
       item.display = [
         prefix,
-        await padding(denops, item.word, param.columnLength, false),
+        await padding(denops, item.word, params.columnLength, false),
         relativePath,
-      ].join(param.separator);
-      return item;
-    }).toArray();
+      ].join(params.separator);
+    }
+    return items;
   }
 
   override params(): Params {
@@ -138,7 +132,7 @@ async function padding(
   denops: Denops,
   expr: string | number,
   limitWidth: number,
-  start = true,
+  right = true,
 ) {
   const str = expr.toString();
   const strDisplayWidth = await fn.strdisplaywidth(denops, str);
@@ -148,7 +142,7 @@ async function padding(
       i--;
     }
     return str.slice(0, i) + "…";
-  } else if (start) {
+  } else if (right) {
     return " ".repeat(limitWidth - strDisplayWidth) + str;
   } else {
     return str + " ".repeat(limitWidth - strDisplayWidth);
