@@ -1,5 +1,6 @@
 import {
   BaseFilter,
+  collect,
   DduItem,
   Denops,
   FilterArguments,
@@ -54,8 +55,14 @@ export class Filter extends BaseFilter<Params> {
       bufnrToPath[bufNr] = await lu.uriFromBufnr(denops, bufNr);
     }
 
+    const iconByteLength = Math.max(
+      ...Object.values(params.iconMap).map(byteLength),
+    );
     const iconLength = Math.max(
-      ...Object.values(param.iconMap).map(byteLength),
+      ...await collect(
+        denops,
+        (denops) => Object.values(params.iconMap).map((icon) => fn.strdisplaywidth(denops, icon)),
+      ),
     );
     const lineLength = (Math.max(...lineSet) + 1).toString().length;
     const characterLength = (Math.max(...characterSet) + 1).toString().length;
@@ -94,7 +101,7 @@ export class Filter extends BaseFilter<Params> {
             name: `ddu-filter-converter_lsp_diagnostic-${hl_group}`,
             hl_group,
             col: 1,
-            width: iconLength,
+            width: iconByteLength,
           },
         ];
       }

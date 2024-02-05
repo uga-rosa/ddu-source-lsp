@@ -14,7 +14,7 @@ export type { Denops } from "https://deno.land/x/denops_std@v5.2.0/mod.ts";
 export * as fn from "https://deno.land/x/denops_std@v5.2.0/function/mod.ts";
 export type { MarkInformation } from "https://deno.land/x/denops_std@v5.2.0/function/types.ts";
 export * as op from "https://deno.land/x/denops_std@v5.2.0/option/mod.ts";
-export { batch } from "https://deno.land/x/denops_std@v5.2.0/batch/mod.ts";
+export { batch, collect } from "https://deno.land/x/denops_std@v5.2.0/batch/mod.ts";
 export { register, unregister } from "https://deno.land/x/denops_std@v5.2.0/lambda/mod.ts";
 export { b, g } from "https://deno.land/x/denops_std@v5.2.0/variable/mod.ts";
 export { test } from "https://deno.land/x/denops_test@v1.4.0/mod.ts";
