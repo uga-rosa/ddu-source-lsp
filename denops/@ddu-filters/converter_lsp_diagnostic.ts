@@ -55,9 +55,6 @@ export class Filter extends BaseFilter<Params> {
       bufnrToPath[bufNr] = await lu.uriFromBufnr(denops, bufNr);
     }
 
-    const iconByteLength = Math.max(
-      ...Object.values(params.iconMap).map(byteLength),
-    );
     const iconLength = Math.max(
       ...await collect(
         denops,
@@ -101,7 +98,7 @@ export class Filter extends BaseFilter<Params> {
             name: `ddu-filter-converter_lsp_diagnostic-${hl_group}`,
             hl_group,
             col: 1,
-            width: iconByteLength,
+            width: byteLength(icon),
           },
         ];
       }
