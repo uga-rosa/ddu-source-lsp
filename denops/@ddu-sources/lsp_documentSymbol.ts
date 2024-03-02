@@ -25,12 +25,11 @@ export class Source extends BaseSource<Params> {
         try {
           if (args.parent) {
             // Call from expandItem
-            // SymbolInformation doesn't have children, parent must be DocumentSymbol.
             const parent = args.parent as ItemWithAction;
-            const symbol = args.parent.data as LSP.DocumentSymbol;
-            const parentPath = [...parent.treePath!];
+            // SymbolInformation doesn't have children, parent must be DocumentSymbol.
+            const symbol = parent.data as LSP.DocumentSymbol;
             const children = symbol.children!
-              .map((child) => symbolToItem(child, parentPath, parent.action.context));
+              .map((child) => symbolToItem(child, [...parent.treePath!], parent.action.context));
             controller.enqueue(children);
           } else {
             const clientName = await getClientName(denops, sourceParams);
