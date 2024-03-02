@@ -45,6 +45,7 @@ export {
   type SourceOptions,
 } from "https://deno.land/x/ddu_vim@v3.8.1/types.ts";
 export { type FilterArguments } from "https://deno.land/x/ddu_vim@v3.8.1/base/filter.ts";
+export { type GatherArguments } from "https://deno.land/x/ddu_vim@v3.8.1/base/source.ts";
 
 export * as LSP from "npm:vscode-languageserver-types@3.17.6-next.1";
 

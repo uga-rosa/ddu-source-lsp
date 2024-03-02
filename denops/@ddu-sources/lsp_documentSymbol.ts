@@ -1,9 +1,9 @@
-import { BaseSource, Context, DduItem, Denops, Item, LSP } from "../ddu_source_lsp/deps.ts";
+import { BaseSource, GatherArguments, Item, LSP } from "../ddu_source_lsp/deps.ts";
 import { lspRequest, LspResult, Method } from "../ddu_source_lsp/request.ts";
-import { Client, ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
+import { ClientName, getClientName, getClients } from "../ddu_source_lsp/client.ts";
 import { makeTextDocumentIdentifier } from "../ddu_source_lsp/params.ts";
 import { printError, SomeRequired, uriToFname } from "../ddu_source_lsp/util.ts";
-import { ActionData } from "../@ddu-kinds/lsp.ts";
+import { ActionData, ItemContext } from "../@ddu-kinds/lsp.ts";
 import { isValidItem } from "../ddu_source_lsp/handler.ts";
 import { KindName } from "../@ddu-filters/converter_lsp_symbol.ts";
 
@@ -16,36 +16,41 @@ type ItemWithAction = SomeRequired<Item<ActionData>, "action">;
 export class Source extends BaseSource<Params> {
   kind = "lsp";
 
-  gather(args: {
-    denops: Denops;
-    sourceParams: Params;
-    context: Context;
-    input: string;
-    parent?: DduItem;
-  }): ReadableStream<Item<ActionData>[]> {
+  gather(args: GatherArguments<Params>): ReadableStream<Item<ActionData>[]> {
     const { denops, sourceParams, context: ctx } = args;
     const method: Method = "textDocument/documentSymbol";
 
     return new ReadableStream({
       async start(controller) {
         try {
-          const clientName = await getClientName(denops, sourceParams);
-          const clients = await getClients(denops, clientName, ctx.bufNr);
+          if (args.parent) {
+            // Call from expandItem
+            // SymbolInformation doesn't have children, parent must be DocumentSymbol.
+            const parent = args.parent as ItemWithAction;
+            const symbol = args.parent.data as LSP.DocumentSymbol;
+            const parentPath = [...parent.treePath!];
+            const children = symbol.children!
+              .map((child) => symbolToItem(child, parentPath, parent.action.context));
+            controller.enqueue(children);
+          } else {
+            const clientName = await getClientName(denops, sourceParams);
+            const clients = await getClients(denops, clientName, ctx.bufNr);
 
-          const params = {
-            textDocument: await makeTextDocumentIdentifier(denops, ctx.bufNr),
-          };
-          await Promise.all(clients.map(async (client) => {
-            const result = await lspRequest(
-              denops,
-              client,
-              method,
-              params,
-              ctx.bufNr,
-            );
-            const items = parseResult(result, client, ctx.bufNr, method);
-            controller.enqueue(items);
-          }));
+            const params = {
+              textDocument: await makeTextDocumentIdentifier(denops, ctx.bufNr),
+            };
+            await Promise.all(clients.map(async (client) => {
+              const result = await lspRequest(
+                denops,
+                client,
+                method,
+                params,
+                ctx.bufNr,
+              );
+              const items = parseResult(result, { client, bufNr: ctx.bufNr, method });
+              controller.enqueue(items);
+            }));
+          }
         } catch (e) {
           printError(denops, e, "source-lsp_documentSymbol");
         } finally {
@@ -62,11 +67,38 @@ export class Source extends BaseSource<Params> {
   }
 }
 
+function symbolToItem(
+  symbol: LSP.DocumentSymbol | LSP.SymbolInformation,
+  parentPath: string[],
+  context: ItemContext,
+): ItemWithAction {
+  const kindName = KindName[symbol.kind];
+  const kind = `[${kindName}]`.padEnd(15, " ");
+  return {
+    word: `${kind} ${symbol.name}`,
+    action: {
+      ...(isDucumentSymbol(symbol)
+        ? {
+          bufNr: context.bufNr,
+          range: symbol.selectionRange,
+        }
+        : {
+          path: uriToFname(symbol.location.uri),
+          range: symbol.location.range,
+        }),
+      context,
+    },
+    isExpanded: true,
+    level: parentPath.length,
+    treePath: [...parentPath, symbol.name],
+    isTree: "children" in symbol,
+    data: symbol,
+  };
+}
+
 function parseResult(
   result: LspResult,
-  client: Client,
-  bufNr: number,
-  method: Method,
+  context: ItemContext,
 ): Item<ActionData>[] {
   /**
    * Reference:
@@ -80,37 +112,14 @@ function parseResult(
     return [];
   }
 
-  const context = { client, bufNr, method };
-
   const items: ItemWithAction[] = [];
   const setItems = (
     parentPath: string[],
     symbols: LSP.DocumentSymbol[] | LSP.SymbolInformation[],
   ) => {
     for (const symbol of symbols) {
-      const kindName = KindName[symbol.kind];
-      const kind = `[${kindName}]`.padEnd(15, " ");
-      const item: ItemWithAction = {
-        word: `${kind} ${symbol.name}`,
-        action: {
-          ...(isDucumentSymbol(symbol)
-            ? {
-              bufNr,
-              range: symbol.selectionRange,
-            }
-            : {
-              path: uriToFname(symbol.location.uri),
-              range: symbol.location.range,
-            }),
-          context,
-        },
-        isExpanded: true,
-        level: parentPath.length,
-        treePath: [...parentPath, symbol.name],
-        data: symbol,
-      };
+      const item = symbolToItem(symbol, parentPath, context);
       if (isDucumentSymbol(symbol) && symbol.children) {
-        item.isTree = true;
         setItems(item.treePath as string[], symbol.children);
       }
       if (isValidItem(item)) {
