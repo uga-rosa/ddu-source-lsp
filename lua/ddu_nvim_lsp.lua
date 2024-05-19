@@ -8,7 +8,9 @@ local M = {}
 ---@param bufNr integer
 ---@return Client[]
 function M.get_client_by_bufnr(bufNr)
-  local clients = vim.lsp.get_active_clients({ bufnr = bufNr })
+  ---@diagnostic disable-next-line: deprecated
+  local get_clients = vim.lsp.get_clients or vim.lsp.get_active_clients
+  local clients = get_clients({ bufnr = bufNr })
   return vim.tbl_map(function(client)
     return {
       name = "nvim-lsp",
@@ -25,6 +27,9 @@ end
 ---@return unknown? result
 function M.request(clientId, method, params, bufNr)
   local client = vim.lsp.get_client_by_id(clientId)
+  if not client then
+    return
+  end
   local response = client.request_sync(method, params, 5000, bufNr)
 
   if response and response.result then
