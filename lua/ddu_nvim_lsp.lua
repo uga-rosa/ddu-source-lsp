@@ -30,6 +30,9 @@ function M.request(clientId, method, params, bufNr)
   if not client then
     return
   end
+  if not client.supports_method(method) then
+    return
+  end
   local response = client.request_sync(method, params, 5000, bufNr)
 
   if response and response.result then
